@@ -99,7 +99,7 @@ Status: done a7daa08. ADRs: 0001, 0011, 0012.
 - Accept: `Pkg.test()` and `julia --project=test test/runtests.jl` pass with one trivial test on CPU and CUDA. Accept (docs): the docs build.
 
 ### WP-1 Grid
-Status: todo. ← WP-0. ADRs: 0003, 0006.
+Status: done 2a68a48. ← WP-0. ADRs: 0003, 0006.
 - `Grid(; Lx, Ly, Nx, Ny, T, backend)`. Rejects odd `N` and unequal spacing: `|Lx/Nx − Ly/Ny| > 1e-12·Lx/Nx`, evaluated in Float64 for every `T`.
 - Galerkin truncation: keep `|k| < k_c` (strict), `k_c = (Nx/3)(2π/Lx)`. The strict bound keeps the disc alias-free also when 3 divides `N` (the self-triad at `|k| = N/3` would fold back inside). Evaluate it on the integer mode indices `(i, j)`: keep the mode iff `9(i²Ny² + j²Nx²) < Nx²Ny²` (Int64), never on float wavenumbers. `k_max` is the largest retained `|k|`.
 - Device arrays for the real-FFT layout `(Nx÷2+1, Ny)`: `kx`, `ky`, `k2`, `truncation` (Bool), `shell_index`; host vectors `shell_k` (centres `nΔk`), `shell_edge` (upper edges `(n+½)Δk`), `shell_count` (retained modes) and `shell_count_all` (all grid modes, for the compressible spectra of ADR-0020); `shell_index` covers every grid mode, and the shells extend to the grid corner. Assign shells on integer indices too: mode `(i, j)` is in the smallest shell `n` with `4·Nm²(i²Ny² + j²Nx²) < (2n+1)²Nx²Ny²`, `Nm = max(Nx, Ny)` (Int128, because the products exceed Int64 for `N ≳ 1300`). A mode on an edge then goes to the upper shell, as the specification's half-open shells require.
@@ -115,7 +115,7 @@ Status: todo. ← WP-1. ADRs: 0001.
 - Accept: round trip to round-off; derivatives of `sin(3x)cos(2y)` exact; the multiplier arrays are zero on the Nyquist column and row (checked on the arrays, and on the spectral output of `∂x!` for `cos(Nx x/2)`, not after an inverse FFT, which hides the defect); `enforce_hermitian!` output, from random untruncated input, survives an `irfft`/`rfft` round trip unchanged to round-off; `Σ f·∂x g = −Σ g·∂x f` on random grid fields (not truncated) to round-off; projection idempotent, `k·û^s = 0`, `k = 0` mode finite; Parseval `⟨fg⟩ = Σ f̂* ĝ` with the half-plane weights of the real FFT.
 
 ### WP-3 Equation of state
-Status: todo. ← WP-0. ADRs: 0008.
+Status: done c38fdc4. ← WP-0. ADRs: 0008.
 - `Isothermal(; cs)`, `Polytropic(; K, γ)`; the five methods of ADR-0008: `pressure`, `enthalpy`, `internal_energy`, `sound_speed²`, `density_from_enthalpy`; `convert_float(T, eos)`.
 - Accept: analytic values at chosen `ρ`; `h'(ρ) = p'(ρ)/ρ` and `e'(ρ) = p/ρ²` by finite difference; `density_from_enthalpy ∘ enthalpy = id`; a kernel calling each method runs on the device.
 
