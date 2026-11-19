@@ -108,7 +108,7 @@ Status: done 2a68a48. ← WP-0. ADRs: 0003, 0006.
 ### WP-2 Transforms and spectral operators
 Status: todo. ← WP-1. ADRs: 0001.
 - Plans created once per grid (`plan_rfft`, `plan_irfft`) for CPU (FFTW threads), CUDA, AMD.
-- `to_spectral!(f̂, f, grid)`, `to_physical!(f, f̂, grid)`, `truncate!(f̂, grid)`, `∂x!`, `∂y!`, `helmholtz_split!(ûs, ûc, û, grid)`, `project_solenoidal!`.
+- `Transforms(grid)` holds the plans and the derivative wavenumbers. `to_spectral!(f̂, f, tr)`, `to_physical!(f, f̂, tr)` (never changes `f̂`), `∂x!(df̂, f̂, tr)`, `∂y!`, `helmholtz_split!(ûs, ûc, û, tr)`, `project_solenoidal!(û, tr)` take the `Transforms`; `truncate!(f̂, grid)` and `enforce_hermitian!(f̂, grid)` take the grid. Vector fields are pairs of arrays. The forward normalisation is a separate pass; later WPs may fuse it into `truncate!` where a truncation follows.
 - Normalisation matches the specification: `f̂(k) = ⟨f e^{−ik·x}⟩`.
 - Derivative multipliers `ikx`, `iky` are zero on the Nyquist column and row, so the discrete derivative is skew-adjoint and keeps Hermitian symmetry (needed by the grid identity of WP-11).
 - `enforce_hermitian!(f̂, grid)`: on the `kx = 0` column copy from the source half `ky > 0` to `f̂(0, −ky) = conj(f̂(0, ky))` (one thread per source mode, so no race on GPU), make `f̂(0, 0)` real, and set the Nyquist column and row to zero. Every routine that generates spectral values directly (initial conditions, forcing) calls it, because the real-FFT layout stores both `(0, ky)` and `(0, −ky)`.
