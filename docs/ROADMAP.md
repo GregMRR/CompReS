@@ -106,7 +106,7 @@ Status: done 2a68a48. ← WP-0. ADRs: 0003, 0006.
 - Accept: for `Lx = 2π, Nx = 8`, hand-listed `kx`, `ky`, `k_max`, retained modes and shell counts; `N = 12` has no retained mode at `|k| = 4`; on `Lx = 5·2π, Ly = 4·2π, Nx = 60, Ny = 48`, mode `(6, −14)` lies on an edge and goes to shell 19; rectangle `Lx = 4π, Ly = 2π` example; rejection of unequal spacing; acceptance of `Lx = 0.3, Nx = 30, Ly = 0.1, Ny = 10` with `T = Float64` and `Float32`; `Lx = 0.3, Nx = 30, Ly = 0.9, Ny = 90` does not keep mode `(0, 30)`.
 
 ### WP-2 Transforms and spectral operators
-Status: todo. ← WP-1. ADRs: 0001.
+Status: done 7b469ea. ← WP-1. ADRs: 0001.
 - Plans created once per grid (`plan_rfft`, `plan_irfft`) for CPU (FFTW threads), CUDA, AMD.
 - `Transforms(grid)` holds the plans and the derivative wavenumbers. `to_spectral!(f̂, f, tr)`, `to_physical!(f, f̂, tr)` (never changes `f̂`), `∂x!(df̂, f̂, tr)`, `∂y!`, `helmholtz_split!(ûs, ûc, û, tr)`, `project_solenoidal!(û, tr)` take the `Transforms`; `truncate!(f̂, grid)` and `enforce_hermitian!(f̂, grid)` take the grid. Vector fields are pairs of arrays. The forward normalisation is a separate pass; later WPs may fuse it into `truncate!` where a truncation follows.
 - Normalisation matches the specification: `f̂(k) = ⟨f e^{−ik·x}⟩`.
