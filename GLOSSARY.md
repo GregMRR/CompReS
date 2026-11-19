@@ -1,4 +1,4 @@
-# NS2D
+# CompReS
 
 Pseudospectral simulation of forced-dissipated 2D turbulence, compressible (low Mach) and incompressible, in a periodic rectangle. The reference equations are in `docs/ns2d_equations.tex`.
 

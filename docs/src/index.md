@@ -1,6 +1,6 @@
-# NS2D
+# CompReS
 
-NS2D is a Julia pseudospectral solver for forced-dissipated 2D turbulence.
+CompReS is a Julia pseudospectral solver for forced-dissipated 2D turbulence.
 It covers the incompressible and the compressible (low Mach) model.
 One source runs on CPU threads, NVIDIA GPUs and AMD GPUs.
 
@@ -9,5 +9,5 @@ One source runs on CPU threads, NVIDIA GPUs and AMD GPUs.
 - The work packages are in `docs/ROADMAP.md`.
 
 ```@docs
-NS2D
+CompReS
 ```

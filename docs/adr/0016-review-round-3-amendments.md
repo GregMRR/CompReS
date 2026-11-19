@@ -9,4 +9,4 @@ Review round 3 of `docs/ROADMAP.md` (report: `reviews/docs/ROADMAP/r3.md`) found
 - **Shell assignment on integer indices (ADR-0003).** Float rounding misassigns modes that lie exactly on a shell edge.
 - **`enforce_hermitian!`** reads the `ky > 0` half and also zeroes the Nyquist column and row.
 - **OU normalisation test runs on CPU only (ADR-0011)**, sampled once per `τ_f`; CUDA checks the same forcing sequence.
-- **`docs/Project.toml`** loads NS2D through `[sources]`. WP-5 depends on WP-3.
+- **`docs/Project.toml`** loads CompReS through `[sources]`. WP-5 depends on WP-3.

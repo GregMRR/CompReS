@@ -1,5 +1,5 @@
 <!-- verified: initial 2026-11-19 -->
-# NS2D (placeholder name)
+# CompReS
 Julia pseudospectral solver for forced-dissipated 2D turbulence, compressible (low Mach) and incompressible, to study intermittency against Mach number. One source runs on CPU threads, NVIDIA and AMD GPUs.
 
 ## Status
@@ -13,7 +13,7 @@ Design phase done; no code yet. Work proceeds by work packages in `docs/ROADMAP.
 
 ## Commands
 - All blocking tests: `julia --project -e 'using Pkg; Pkg.test()'` (CPU always, CUDA when `CUDA.functional()`).
-- One test file: `julia --project=test test/runtests.jl <name>` (WP-0 implements the name filter; `test/Project.toml` loads NS2D from `..`).
+- One test file: `julia --project=test test/runtests.jl <name>` (WP-0 implements the name filter; `test/Project.toml` loads CompReS from `..`).
 - Non-blocking tier: `julia --project=test test/nonblocking/runtests.jl`.
 - AMD tier (needs AMD hardware): `julia --project=test test/amdgpu/runtests.jl`.
 - Docs: `julia --project=docs docs/make.jl`.

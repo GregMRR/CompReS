@@ -12,7 +12,7 @@ Notation: `WP-n ← WP-a, WP-b` means WP-n needs WP-a and WP-b done first. WPs w
 A run script must read like this. Every WP keeps its interface compatible with it.
 
 ```julia
-using NS2D
+using CompReS
 
 grid    = Grid(; Lx = 2π, Ly = 2π, Nx = 512, Ny = 512, T = Float64, backend = CPU())
 model   = Compressible(; eos = Isothermal(cs = 10.0), μ = 1e-4, ζ = 0.0, κ = 0.0,
@@ -39,9 +39,9 @@ Parameters are written as plain Julia numbers. `Simulation` converts every param
 
 ```
 Project.toml                 weak deps: CUDA, AMDGPU, Makie, Plots
-test/Project.toml            test environment: NS2D via [sources] path "..", Test, CUDA, AMDGPU
-docs/Project.toml            docs environment: NS2D via [sources] path "..", Documenter
-src/NS2D.jl                  module, exports, includes in dependency order
+test/Project.toml            test environment: CompReS via [sources] path "..", Test, CUDA, AMDGPU
+docs/Project.toml            docs environment: CompReS via [sources] path "..", Documenter
+src/CompReS.jl                  module, exports, includes in dependency order
 src/grid.jl                  WP-1
 src/transforms.jl            WP-2
 src/eos.jl                   WP-3
@@ -58,8 +58,8 @@ src/forcing.jl               WP-9
 src/io.jl                    WP-12
 src/simulation.jl            WP-13
 src/balanced_density.jl      WP-14
-ext/NS2DCUDAExt.jl, ext/NS2DAMDGPUExt.jl     WP-0
-ext/NS2DMakieExt.jl (trigger: Makie), ext/NS2DPlotsExt.jl (trigger: Plots)   WP-15
+ext/CompReSCUDAExt.jl, ext/CompReSAMDGPUExt.jl     WP-0
+ext/CompReSMakieExt.jl (trigger: Makie), ext/CompReSPlotsExt.jl (trigger: Plots)   WP-15
 test/runtests.jl, test/<module>.jl           blocking tier
 test/nonblocking/runtests.jl                 non-blocking tier
 test/acceptance/                             user-inspected animation
@@ -91,11 +91,11 @@ WP-13 → WP-15, WP-16, WP-17, WP-18 (late)
 
 ### WP-0 Package skeleton and test harness
 Status: done a7daa08. ADRs: 0001, 0011, 0012.
-- `Project.toml` with deps (KernelAbstractions, AbstractFFTs, FFTW, NCDatasets, TimerOutputs, Random, TOML) and weak deps; empty extensions that load. Tests use their own environment `test/Project.toml` (NS2D through `[sources]` with `path = ".."`, plus Test, CUDA, AMDGPU), so `julia --project=test test/<file>.jl` works outside `Pkg.test`.
+- `Project.toml` with deps (KernelAbstractions, AbstractFFTs, FFTW, NCDatasets, TimerOutputs, Random, TOML) and weak deps; empty extensions that load. Tests use their own environment `test/Project.toml` (CompReS through `[sources]` with `path = ".."`, plus Test, CUDA, AMDGPU), so `julia --project=test test/<file>.jl` works outside `Pkg.test`.
 - `test/runtests.jl`: a `backends()` function that returns `[CPU()]` plus `CUDABackend()` when `CUDA.functional()`; a `@testset` loop that calls each test file's `run_tests(backend)`. A helper `is_cpu(backend)` lets a test function run a CPU-only item (ADR-0011 exception) and its device counterpart on the other backends.
 - `test/amdgpu/runtests.jl` calling the same functions with `ROCBackend()`.
 - `test/nonblocking/runtests.jl` that reports results and always exits 0.
-- `docs/make.jl` and `docs/Project.toml` (NS2D through `[sources]`, Documenter); `.github/workflows/CI.yml` (CPU tests, docs build and deploy).
+- `docs/make.jl` and `docs/Project.toml` (CompReS through `[sources]`, Documenter); `.github/workflows/CI.yml` (CPU tests, docs build and deploy).
 - Accept: `Pkg.test()` and `julia --project=test test/runtests.jl` pass with one trivial test on CPU and CUDA. Accept (docs): the docs build.
 
 ### WP-1 Grid

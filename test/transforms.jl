@@ -4,7 +4,7 @@ module TransformsTests
 using Test
 using Random
 using KernelAbstractions
-using NS2D
+using CompReS
 
 # Array position of the mode with integer indices (i, j) in the real-FFT layout.
 pos(g, i, j) = (i + 1, j < 0 ? g.Ny + j + 1 : j + 1)

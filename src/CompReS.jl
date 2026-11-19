@@ -1,11 +1,11 @@
-# Entry point of the NS2D package: each source file is included in dependency order, followed by its exports.
+# Entry point of the CompReS package: each source file is included in dependency order, followed by its exports.
 """
-    NS2D
+    CompReS
 
 Pseudospectral solver for forced-dissipated 2D turbulence, compressible (low Mach) and
 incompressible, on CPU threads, NVIDIA GPUs and AMD GPUs.
 """
-module NS2D
+module CompReS
 
 using KernelAbstractions
 using AbstractFFTs: plan_rfft, plan_brfft

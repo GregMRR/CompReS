@@ -3,7 +3,7 @@ module EosTests
 
 using Test
 using KernelAbstractions
-using NS2D
+using CompReS
 
 @kernel function eos_kernel!(out, eos, ρ)
     i = @index(Global)

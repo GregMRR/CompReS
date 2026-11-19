@@ -3,7 +3,7 @@ module GridTests
 
 using Test
 using KernelAbstractions
-using NS2D
+using CompReS
 
 # Array position of the mode with integer indices (i, j) in the real-FFT layout.
 pos(g, i, j) = (i + 1, j < 0 ? g.Ny + j + 1 : j + 1)
@@ -72,7 +72,7 @@ function run_tests(backend)
         end
 
         @testset "CPU is re-exported" begin
-            @test NS2D.CPU === KernelAbstractions.CPU
+            @test CompReS.CPU === KernelAbstractions.CPU
         end
 
         @testset "construction checks" begin
