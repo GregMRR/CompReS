@@ -219,6 +219,10 @@ The root-mean-square velocity, GLOBAL diagnostic `u_rms` of the compressible mod
 u_{\\rm rms} = \\langle|\\mathbf{u}|^2\\rangle^{1/2} = \\Big(\\sum_{\\mathbf{k}} |\\hat{\\mathbf{u}}(\\mathbf{k})|^2\\Big)^{1/2} .
 ```
 """
+# Definition choice (ADR-0025). To change it, replace the body with one of:
+#   per component:     sqrt(mode_sum((kx, ky, ax, ay, bx, by) -> velocity_product(ax, ay, ax, ay), state.fields, state.fields, ws) / 2)
+#   density-weighted:  sqrt(2 * kinetic_energy(state, problem, ws) / mass(state, problem, ws))   (name the argument `problem`)
+# mach_number reads this function, so Ma follows the change.
 rms_velocity(state, ::CompressibleProblem, ws) =
     sqrt(mode_sum((kx, ky, ax, ay, bx, by) -> velocity_product(ax, ay, ax, ay), state.fields, state.fields, ws))
 
@@ -232,6 +236,8 @@ equation of state at the reference density ``\\rho_0 = 1`` (specification, equat
 \\mathrm{Ma} = u_{\\rm rms}/c_s(\\rho_0) .
 ```
 """
+# Definition choice (ADR-0025). To use the sound speed at the current mean density, replace `one(T)` with
+# `mass(state, problem, ws)`.
 mach_number(state::State{T}, problem::CompressibleProblem, ws) where {T} =
     rms_velocity(state, problem, ws) / sqrt(sound_speed²(problem.model.eos, one(T)))
 
