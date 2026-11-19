@@ -148,7 +148,7 @@ Status: todo. ← WP-5, WP-6, WP-8. ADRs: 0005, 0011.
 - Accept: through the production `step!`, on a one-mode problem `y' = −2y + y²` (`L = −2`, nonlinear part `y²`), convergence orders 1, 2, 3, 4 **both without and with the IF**. Conservation test and Kolmogorov decay test (ADR-0011), with `E_kin` and `Z` from WP-8. Injection test: an incompressible run with forcing only (nonlinear term, `ν` and `α` off, OU forcing) gives `|inj_E_kin − (E_kin(t_{n+1}) − E_kin(t_n))/Δt| ≤ 10·eps(T)·E_kin(t_{n+1})/Δt`, and the same for `Z`, for `T = Float64` and `Float32`, over 1000 steps, for every scheme (the scale is `E_kin/Δt` because the energy difference cancels) (with forcing only, every RK scheme gives `u_{n+1} = u_n + Δt f_n`).
 
 ### WP-8 Diagnostics registry and incompressible diagnostics
-Status: todo. ← WP-6, WP-9. ADRs: 0009.
+Status: done 90b6d1b. ← WP-6, WP-9. ADRs: 0009, 0022.
 - `register_diagnostic!(class, name, f)`; per-class selection by name.
 - Shell spectra and cumulative fluxes on device, reduced per shell; GLOBAL and SPECTRAL defaults of ADR-0009 for the incompressible model, including the injection rates (from the forcing of WP-9).
 - Flux coordinate: `Pi(K_n)` sums all modes in shells `0…n`, that is `|q| < K_n` with `K_n = (n+½)Δk` (`shell_edge`). It equals the specification's `Π(K)` for every `K` between the largest `|q|` in shells `0…n` and `K_n`, excluding `K_n` itself (on a rectangle a mode can lie exactly on `K_n`; it belongs to shell `n+1`). It is reported at `K_n`; spectra are reported at the shell centres.

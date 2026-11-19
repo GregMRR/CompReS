@@ -3,7 +3,7 @@
 Julia pseudospectral solver for forced-dissipated 2D turbulence, compressible (low Mach) and incompressible, to study intermittency against Mach number. One source runs on CPU threads, NVIDIA and AMD GPUs.
 
 ## Status
-Design phase done; no code yet. Work proceeds by work packages in `docs/ROADMAP.md`.
+Implementation in progress by work packages in `docs/ROADMAP.md`; each WP status line there says what is done.
 
 ## Where to read first
 - `GLOSSARY.md`: the project vocabulary. Use its terms in code, docstrings, commits and docs; its _Avoid_ lists name the words to replace.
