@@ -48,7 +48,10 @@ The fields are:
 - `vorticity`: a real `Nx × Ny` array for the physical-space vorticity `\\omega` (WP-6).
 - `compressible`: `nothing` for the incompressible model. For the compressible model, the buffers of
   its [`rhs!`](@ref) (WP-10): `viscous_x`, `viscous_y`, real `Nx × Ny` arrays for the physical-space
-  `\\mu\\nabla^2\\mathbf{u} + \\zeta\\nabla\\theta`, and `spectral`, one spectral field.
+  `\\mu\\nabla^2\\mathbf{u} + \\zeta\\nabla\\theta`, and `spectral`, one spectral field. The
+  compressible diagnostics (WP-11) use these three as scratch, plus their own: `scratch`, one more real
+  `Nx × Ny` array, and `pair`, a `NamedTuple` `(ux, uy)` of spectral fields for the density-weighted
+  fields `\\hat{\\mathbf{w}}` or `\\hat s`.
 - `forcing`: a `NamedTuple` `(ux, uy)` of spectral fields for the forcing `\\hat{\\mathbf{f}}` of the
   current step, which [`update_forcing!`](@ref) writes (WP-9). They are zero outside the forcing support.
 - `diagnostics`: the buffers of the diagnostics (WP-8): `density`, a real array of the spectral size for
@@ -74,12 +77,15 @@ struct Workspace{TR<:Transforms,P<:NamedTuple,A<:AbstractMatrix,C,F<:NamedTuple,
     stepper::S
 end
 
-# Buffers of the compressible rhs! (WP-10); the incompressible model needs none.
+# Buffers of the compressible rhs! (WP-10) and diagnostics (WP-11); the incompressible model needs none.
 compressible_buffers(grid, ::NamedTuple{(:ux, :uy)}) = nothing
 compressible_buffers(grid::Grid{T}, ::NamedTuple{(:ux, :uy, :rho)}) where {T} =
     (viscous_x = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny),
      viscous_y = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny),
-     spectral = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny))
+     spectral = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny),
+     scratch = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny),
+     pair = (ux = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny),
+             uy = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny)))
 
 # Buffers of the diagnostics (WP-8). The shell reduction reads the modes of shell n at the positions
 # shell_start[n]:(shell_start[n + 1] - 1) of shell_order.

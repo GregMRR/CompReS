@@ -26,28 +26,28 @@ kinetic_energy(state, ::IncompressibleProblem, ws) =
 """
     enstrophy(state, problem, workspace) -> T
 
-The enstrophy, GLOBAL diagnostic `Z`. In the incompressible model (specification, incompressible model,
-invariants):
+The enstrophy, GLOBAL diagnostic `Z`, in both models (specification, invariants). The vorticity is
+band-limited, so the sum over the stored modes equals the grid mean:
 
 ```math
 Z = \\tfrac12\\langle\\omega^2\\rangle = \\tfrac12 \\sum_{\\mathbf{k}} |\\hat\\omega(\\mathbf{k})|^2,
 \\qquad \\hat\\omega = i(k_x \\hat u_y - k_y \\hat u_x) .
 ```
 """
-enstrophy(state, ::IncompressibleProblem, ws) =
+enstrophy(state, ::Problem, ws) =
     mode_sum((kx, ky, ax, ay, bx, by) -> vorticity_product(kx, ky, ax, ay, bx, by) / 2, state.fields, state.fields, ws)
 
 """
     palinstrophy(state, problem, workspace) -> T
 
-The palinstrophy, GLOBAL diagnostic `P`. In the incompressible model (specification, incompressible
-model, global budgets):
+The palinstrophy, GLOBAL diagnostic `P`, in both models (specification, incompressible model, global
+budgets):
 
 ```math
 P = \\tfrac12\\langle|\\nabla\\omega|^2\\rangle = \\tfrac12 \\sum_{\\mathbf{k}} k^2 |\\hat\\omega(\\mathbf{k})|^2 .
 ```
 """
-palinstrophy(state, ::IncompressibleProblem, ws) =
+palinstrophy(state, ::Problem, ws) =
     mode_sum((kx, ky, ax, ay, bx, by) -> (kx^2 + ky^2) * vorticity_product(kx, ky, ax, ay, bx, by) / 2,
              state.fields, state.fields, ws)
 
@@ -134,13 +134,13 @@ kinetic_energy_spectrum_inc(state, ::IncompressibleProblem, ws) =
     enstrophy_spectrum(state, problem, workspace) -> Vector{T}
 
 The shell spectrum of the enstrophy, SPECTRAL diagnostic `Z_k`, at the shell centres ``k_n``
-(`grid.shell_k`). In the incompressible model (specification, incompressible model, spectra):
+(`grid.shell_k`), in both models (specification, incompressible model, spectra):
 
 ```math
 Z(k_n) = \\tfrac12 \\sum_{\\mathbf{q} \\in k_n} |\\hat\\omega(\\mathbf{q})|^2 .
 ```
 """
-enstrophy_spectrum(state, ::IncompressibleProblem, ws) =
+enstrophy_spectrum(state, ::Problem, ws) =
     shell_sums((kx, ky, ax, ay, bx, by) -> vorticity_product(kx, ky, ax, ay, bx, by) / 2, state.fields, state.fields, ws)
 
 # Cumulative sums over shells of Σ w f, with b the tendency −P N̂ of the advection (WP-6).

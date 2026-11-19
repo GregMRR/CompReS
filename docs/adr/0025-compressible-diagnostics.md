@@ -1,0 +1,16 @@
+# Compressible diagnostics: rate names, definitions and buffers
+
+Date: 2026-11-19. Status: accepted.
+
+WP-11 fixes the parts of the compressible diagnostics that ADR-0009, ADR-0020 and the specification leave open. Changes:
+
+- **Density-diffusion rates `kappa_<q>`.** The terms of the density diffusivity `κ` in the global budgets get the names `kappa_E_kin`, `kappa_E_int` and `kappa_Omega`. Each is the signed change of `q` per unit time, as it appears in the budget, because only the `E_int` term has a fixed sign. The `inj_<q>`, `dissS_<q>` and `dissL_<q>` rates keep the convention of ADR-0009: an injection rate adds, a dissipation rate removes. The compressible budgets then read `dE_kin/dt = p_theta + inj_E_kin − dissS_E_kin − dissL_E_kin + kappa_E_kin`, `dE_int/dt = −p_theta + kappa_E_int`, `dOmega/dt = inj_Omega − dissS_Omega − dissL_Omega + kappa_Omega`, up to the aliasing floor (specification, note 2).
+- **Rates of the semi-discrete system.** `kappa_E_int` is `κ⟨h(ρ)∇²ρ⟩`, not `−κ⟨h'(ρ)|∇ρ|²⟩`. The two agree in the continuum, but only the first equals the change of the grid mean `⟨ρe(ρ)⟩` by the term `−κk²ρ̂` of the evolved equations. `dissS_E_kin` is `⟨D⟩ = Σ(μk²|û|² + ζ|k·û|²)`, exact because `û` is band-limited. `dissS_Omega = −⟨q curl g⟩` takes the curl spectrally on the grid values of `g`; it has no fixed sign. `dissL_E_kin = α⟨ρu·(−∇²)^{−m}u⟩` and `dissL_Omega = α⟨q(−∇²)^{−m}ω⟩`, because the large-scale dissipation acts on `u`, not on `w` (ADR-0004).
+- **`u_rms` and `Ma`.** `u_rms = ⟨|u|²⟩^{1/2}`, without density weight and summed over both components. `Ma = u_rms/c_s(ρ₀)` with the reference density `ρ₀ = 1` of the linear terms (ADR-0004), not the current mean density. Both choices await confirmation by the physicist.
+- **`mass` is `ρ̂(0)`,** the mean density, read from the spectral state without a transform.
+- **`E_kin_inc` and `E_kin_comp` are spectral sums** over all grid modes of the Helmholtz parts of `ŵ`, with the derivative wavenumbers of `helmholtz_split!`. On the Nyquist column and row these wavenumbers are zero, so a mode there counts as solenoidal in that direction. By Parseval `E_kin_inc + E_kin_comp` equals the grid mean `E_kin`.
+- **`rho_k` keeps shell 0,** which holds `½⟨ρ⟩²`, as the definition of the shell spectrum states.
+- **`Z`, `P` and `Z_k` serve both models** with one method each: the vorticity is band-limited in both. The incompressible rates `inj_Z`, `dissS_Z`, `dissL_Z` and the flux `Pi_Z` have no compressible method, because `Z` is not an invariant of the compressible model.
+- **Fluxes use spectral derivatives without truncation.** `Pi_kin` and `Pi_Omega` differentiate the grid fields `½|u|²`, `ρu` and `uω` over all grid modes. The skew-adjoint derivative then makes `Pi_kin` over all grid modes vanish to round-off (specification, note 2).
+- **Buffers.** The compressible diagnostics add `scratch` (one physical field) and `pair` (two spectral fields) to `workspace.compressible`, and use the `rhs!` buffers there as scratch between steps. The incompressible workspace does not change.
+- **The spectral budgets carry no `κ` terms yet.** ADR-0009 lists no spectral rate; the GLOBAL `kappa_<q>` close the global budgets.

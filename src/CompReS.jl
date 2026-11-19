@@ -12,6 +12,8 @@ using AbstractFFTs: plan_rfft, plan_brfft
 using FFTW: FFTW
 using LinearAlgebra: mul!
 using Random: Xoshiro, randn!
+using NCDatasets: NCDataset, defDim, defVar, sync
+using TOML: TOML
 
 export CPU
 
@@ -47,8 +49,13 @@ include("diagnostics/registry.jl")
 export Diagnostic, register_diagnostic!, select_diagnostics, default_diagnostics, record_injection!
 
 include("diagnostics/incompressible.jl")
+include("diagnostics/compressible.jl")
 
 include("timestepping.jl")
 export RungeKuttaScheme, Euler, RK2, SSPRK3, RK4, step!
+
+include("io.jl")
+export Output, selected_diagnostics, parameters, write_parameters, open_global, write_global!, open_spectral,
+    write_spectral!, write_snapshot, read_snapshot!
 
 end

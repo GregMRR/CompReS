@@ -13,7 +13,7 @@ The user-chosen barotropic law `p(ρ)`, for example isothermal or polytropic.
 _Avoid_: pressure law, closure
 
 **Mach number**:
-`Ma = u_rms / c_s(ρ₀)`, with `c_s² = p'(ρ)`.
+`Ma = u_rms / c_s(ρ₀)`, with `c_s² = p'(ρ)`, `u_rms = ⟨|u|²⟩^{1/2}` and the reference density `ρ₀ = 1`.
 
 **Small-scale dissipation**:
 The Navier–Stokes viscous term: `ν∇²u` (incompressible) or `(1/ρ)∂_jτ_ij` with shear viscosity `μ` and bulk viscosity `ζ` (compressible).
@@ -97,6 +97,12 @@ _Avoid_: E_K, E (alone)
 `Ω = ½⟨ω²/ρ⟩`, the quadratic invariant of the compressible model.
 _Avoid_: enstrophy (in the compressible model)
 
+**Pressure–dilatation term**:
+`p_theta = ⟨pθ⟩`, the rate at which the pressure moves energy from `E_int` to `E_kin`.
+
+**Density-diffusion rate**:
+The signed rate at which the density diffusivity changes a quadratic quantity, for example `kappa_E_kin = ½κ⟨|u|²∇²ρ⟩`. Compressible model only.
+
 ## Time stepping
 
 **Scheme**:
@@ -127,6 +133,9 @@ A named function `(state, problem, workspace) → value` registered under the ou
 **Snapshot**:
 One FIELDS sample: all independent physical-space fields at one time, plus the forcing state. A snapshot is also a valid restart input.
 _Avoid_: dump, checkpoint
+
+**Snapshot index**:
+The running number of FIELDS samples of a run, 0 at the start time. It names the file `snap_NNNNNN.nc`; it is not the step number.
 
 **Runtime log**:
 The per-run record of wall-clock timings of the solver tasks.
