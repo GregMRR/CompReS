@@ -18,6 +18,7 @@ Implementation in progress by work packages in `docs/ROADMAP.md`; each WP status
 - Non-blocking tier: `julia --project=test test/nonblocking/runtests.jl`.
 - AMD tier (needs AMD hardware): `julia --project=test test/amdgpu/runtests.jl`.
 - Docs: `julia --project=docs docs/make.jl`.
+- A new file in `src/` needs an `@autodocs` line in one of `docs/src/api/*.md`; otherwise the docs check `checkdocs = :all` fails.
 
 ## Workflow for a work package
 1. Read the WP in `docs/ROADMAP.md` and its listed ADRs.

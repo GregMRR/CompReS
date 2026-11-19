@@ -7,3 +7,4 @@ Manifest.toml
 *.log
 !run.log
 *.out
+/docs/src/ns2d_equations.pdf
