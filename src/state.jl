@@ -44,18 +44,21 @@ The fields are:
 - `transforms`: the [`Transforms`](@ref) of `grid`.
 - `physical`: a `NamedTuple` of real `Nx × Ny` arrays, one per state field and with the same name,
   for the physical-space values of that field (`ux`, `uy` and, compressible model only, `rho`).
+- `vorticity`: a real `Nx × Ny` array for the physical-space vorticity `\\omega` (WP-6).
 
 A work package adds its buffers as one more field of this struct, built in this constructor.
 A buffer per state field is a `NamedTuple` built with `map` over `state.fields`, as `physical` is;
 it then follows the model without a branch. Code reads a buffer by name, for example
 `ws.physical.ux`, and the typed fields keep every access type-stable.
 """
-struct Workspace{TR<:Transforms,P<:NamedTuple}
+struct Workspace{TR<:Transforms,P<:NamedTuple,A<:AbstractMatrix}
     transforms::TR
     physical::P
+    vorticity::A
 end
 
 function Workspace(grid::Grid{T}, state::State{T}) where {T}
     physical = map(_ -> KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny), state.fields)
-    return Workspace(Transforms(grid), physical)
+    vorticity = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny)
+    return Workspace(Transforms(grid), physical, vorticity)
 end

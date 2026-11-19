@@ -35,4 +35,7 @@ export random_velocity, kolmogorov, crossed_kolmogorov, uniform_density
 include("linear.jl")
 export LargeScaleDissipation, Incompressible, Compressible, linear_rates, linear_tendency!, propagate!
 
+include("nonlinear_incompressible.jl")
+export Problem, NoForcing, rhs!
+
 end

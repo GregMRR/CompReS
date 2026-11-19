@@ -138,7 +138,7 @@ Status: done d96cb38. ← WP-2, WP-3. ADRs: 0004, 0005.
 Status: todo. ← WP-4, WP-5. ADRs: 0002, 0003.
 - Lamb form `(u·∇)u = ∇(½|u|²) + ω ẑ × u`: compute `ω ẑ × u` and project (the projection removes the gradient); 5 FFTs per evaluation; result truncated.
 - `Problem(grid, model, forcing)`: bundles grid, model, forcing and the linear rates of WP-5; WP-7 advances it, and WP-8 and WP-11 add `record_injection!` methods for it.
-- `rhs!(dû, state, problem, workspace)` for the incompressible model; it honours `nonlinear = false` (WP-5) by skipping the advection. It calls the forcing hook `add_forcing!(dû, forcing, state, workspace)`; WP-6 defines `NoForcing` and its no-op method, WP-9 adds the others.
+- `rhs!(dû, state, problem, workspace)` for the incompressible model; it honours `nonlinear = false` (WP-5) by skipping the advection. `rhs!` returns the nonlinear term plus the forcing only; `step!` (WP-7) adds the linear terms with `linear_tendency!` or applies them with `propagate!`. It calls the forcing hook `add_forcing!(dû, forcing, state, workspace)`; WP-6 defines `NoForcing` and its no-op method, WP-9 adds the others.
 - Accept: shear flow `sin(ky) x̂` gives zero to round-off; cellular flow with streamfunction `ψ = sin x sin y` (`u = (sin x cos y, −cos x sin y)`) gives zero; `Σ Re[û*·N̂] = 0` and `Σ Re[ω̂*·(u·∇ω)^] = 0` to round-off on a random field.
 
 ### WP-7 Time stepping
