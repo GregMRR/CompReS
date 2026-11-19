@@ -14,7 +14,7 @@ Output is NetCDF (NCDatasets.jl). Each run directory holds:
 
 Each class has its own sampling period, stored as a file attribute. All parameters are global attributes of every `.nc` file. A snapshot holds the physical-space fields (`ux`, `uy` and, compressible only, `rho`), the forcing state, the seed and the step, and it is the only restart input. A restart reproduces the saved state to round-off (`‖û_restart − û‖₂/‖û‖₂ ≤ 10·eps(T)`), because the physical-to-spectral round trip is not exact in floating point, and it reproduces the forcing sequence exactly (amended by ADR-0014, ADR-0015).
 
-A **diagnostic** is a named function `(state, workspace) → value` registered under one output class. Injection rates need the state at the start of a step, so `step!` stores them in the workspace and their diagnostics read them (amended by ADR-0016). A run selects diagnostics by name; a new diagnostic is one function and one registration line.
+A **diagnostic** is a named function `(state, workspace) → value` registered under one output class. Injection rates need the state at the start of a step, so `step!` calls the hook `record_injection!`, which stores them in the workspace, and their diagnostics read them (amended by ADR-0016, ADR-0017). A run selects diagnostics by name; a new diagnostic is one function and one registration line.
 
 Naming: a quantity on the solenoidal part has suffix `_inc`, one on the compressive part `_comp` (`E_kin_inc`, `Pi_kin_comp`). Vorticity quantities (`Z`, `Omega`, `P`) have no split. Rates are `inj_<q>`, `dissS_<q>` (small scale) and `dissL_<q>` (large scale). The incompressible model writes the same names with the `_comp` ones absent, so analysis scripts work on both models.
 

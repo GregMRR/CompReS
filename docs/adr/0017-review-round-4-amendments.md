@@ -7,3 +7,4 @@ Review round 4 of `docs/ROADMAP.md` (report: `reviews/docs/ROADMAP/r4.md`) found
 - **`record_injection!` hook in `step!` (WP-7).** `step!` calls it after `update_forcing!`, before the first stage. Its default does nothing, so `step!` stays generic. WP-8 adds the incompressible method, WP-11 the compressible one.
 - **Injection test.** With forcing only, every RK scheme gives `u_{n+1} = u_n + Δt f_n`, so `inj_E_kin` must equal `ΔE_kin/Δt` to round-off.
 - **OU test interval.** Realisation means are independent, time samples are not; the test uses a 99.9% interval over realisation means with a fixed seed.
+- **CPU-only exception (ADR-0011).** ADR-0011 now states it explicitly; test functions use `is_cpu(backend)`.

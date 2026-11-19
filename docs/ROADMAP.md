@@ -92,7 +92,7 @@ WP-13 → WP-15, WP-16, WP-17, WP-18 (late)
 ### WP-0 Package skeleton and test harness
 Status: todo. ADRs: 0001, 0011, 0012.
 - `Project.toml` with deps (KernelAbstractions, AbstractFFTs, FFTW, NCDatasets, TimerOutputs, Random, TOML) and weak deps; empty extensions that load. Tests use their own environment `test/Project.toml` (NS2D through `[sources]` with `path = ".."`, plus Test, CUDA, AMDGPU), so `julia --project=test test/<file>.jl` works outside `Pkg.test`.
-- `test/runtests.jl`: a `backends()` function that returns `[CPU()]` plus `CUDABackend()` when `CUDA.functional()`; a `@testset` loop that calls each test file's `run_tests(backend)`.
+- `test/runtests.jl`: a `backends()` function that returns `[CPU()]` plus `CUDABackend()` when `CUDA.functional()`; a `@testset` loop that calls each test file's `run_tests(backend)`. A helper `is_cpu(backend)` lets a test function run a CPU-only item (ADR-0011 exception) and its device counterpart on the other backends.
 - `test/amdgpu/runtests.jl` calling the same functions with `ROCBackend()`.
 - `test/nonblocking/runtests.jl` that reports results and always exits 0.
 - `docs/make.jl` and `docs/Project.toml` (NS2D through `[sources]`, Documenter); `.github/workflows/CI.yml` (CPU tests, docs build and deploy).
@@ -128,7 +128,7 @@ Status: todo. ← WP-2. ADRs: 0002, 0008.
 
 ### WP-5 Linear operators and integrating factor
 Status: todo. ← WP-2, WP-3. ADRs: 0004, 0005.
-- Model types `Incompressible(; ν, large_scale)`, `Compressible(; eos, μ, ζ, κ, large_scale)` (EOS field is parametric; the tests use the WP-3 EOS types), `LargeScaleDissipation(; α, m)`; `convert_float(T, x)` for each parameter struct.
+- Model types `Incompressible(; ν, large_scale, nonlinear = true)`, `Compressible(; eos, μ, ζ, κ, large_scale, nonlinear = true)`; `nonlinear = false` is a test switch that drops every term except the linear ones and the forcing (incompressible: the advection; compressible: advection, pressure, viscous remainder and the continuity flux, so `ρ` stays fixed) (EOS field is parametric; the tests use the WP-3 EOS types), `LargeScaleDissipation(; α, m)`; `convert_float(T, x)` for each parameter struct.
 - Rate arrays for small-scale dissipation, large-scale dissipation (`k = 0` excluded) and density diffusivity.
 - `linear_tendency!` (explicit use) and `propagator(Δt)` (IF use); compressible propagator diagonal in the Helmholtz basis.
 - Interface leaves room for a later per-mode 2×2 acoustic propagator (ADR-0005, open question).
@@ -142,9 +142,9 @@ Status: todo. ← WP-4, WP-5. ADRs: 0002, 0003.
 
 ### WP-7 Time stepping
 Status: todo. ← WP-5, WP-6, WP-8. ADRs: 0005, 0011.
-- Butcher tables `Euler`, `RK2`, `SSPRK3`, `RK4`; one generic `step!` with and without IF; preallocated stage buffers. `step!` is generic over the state and the right-hand side, so the same code advances a full grid and a one-mode test problem.
-- `step!` calls `update_forcing!` (WP-9) once, before the first stage; the forcing stays constant inside the stages (ADR-0005). Right after it, `step!` calls `record_injection!(problem, state, workspace, Δt)`; this hook stores the injection rates of WP-8 in the workspace. Its default method does nothing, so the one-mode test problem needs no change.
-- Accept: through the production `step!`, on a one-mode problem `y' = −2y + y²` (`L = −2`, nonlinear part `y²`), convergence orders 1, 2, 3, 4 **both without and with the IF**. Conservation test and Kolmogorov decay test (ADR-0011), with `E_kin` and `Z` from WP-8. Injection test: an incompressible run with forcing only (nonlinear term, `ν` and `α` off, OU forcing) gives `inj_E_kin = (E_kin(t_{n+1}) − E_kin(t_n))/Δt` and the same for `Z`, to round-off, for every scheme (with forcing only, every RK scheme gives `u_{n+1} = u_n + Δt f_n`).
+- Butcher tables `Euler`, `RK2`, `SSPRK3`, `RK4`; one generic `step!` with and without IF; preallocated stage buffers. `step!(state, problem, workspace, Δt)` is generic: `problem` bundles everything the right-hand side needs (model, forcing, linear rates, grid) and provides `rhs!(dû, state, problem, workspace)`, so the same code advances a full grid and a one-mode test problem.
+- `step!` calls `update_forcing!` (WP-9) once, before the first stage; the forcing stays constant inside the stages (ADR-0005). `update_forcing!` writes the new `f̂` into the workspace. Right after it, `step!` calls `record_injection!(problem, state, workspace, Δt)`, which reads `f̂` from the workspace and stores the injection rates of WP-8 there. Its default method does nothing, so the one-mode test problem needs no change. The stored rates start as NaN, so a GLOBAL sample taken before the first step of a run or after `restart!` writes NaN (the NetCDF fill value) for `inj_*`.
+- Accept: through the production `step!`, on a one-mode problem `y' = −2y + y²` (`L = −2`, nonlinear part `y²`), convergence orders 1, 2, 3, 4 **both without and with the IF**. Conservation test and Kolmogorov decay test (ADR-0011), with `E_kin` and `Z` from WP-8. Injection test: an incompressible run with forcing only (nonlinear term, `ν` and `α` off, OU forcing) gives `|inj_E_kin − (E_kin(t_{n+1}) − E_kin(t_n))/Δt| ≤ 10·eps(T)·E_kin/Δt`, and the same for `Z`, for `T = Float64` and `Float32`, over 1000 steps, for every scheme (the scale is `E_kin/Δt` because the energy difference cancels) (with forcing only, every RK scheme gives `u_{n+1} = u_n + Δt f_n`).
 
 ### WP-8 Diagnostics registry and incompressible diagnostics
 Status: todo. ← WP-6, WP-9. ADRs: 0009.
@@ -161,20 +161,21 @@ Status: todo. ← WP-6. ADRs: 0007.
 - `add_forcing!` methods for each type: add `f̂` to the tendency. The incompressible model always projects `f̂`; a nonzero compressive fraction is allowed only with the compressible model, and the constructor or `Simulation` rejects it otherwise.
 - Generated forcing values pass through `enforce_hermitian!` (WP-2). `convert_float(T, forcing)`.
 - Accept: hand-counted support on `N = 16`; `band` on `Lx = 4π, Ly = 2π` selects by physical `|k|`; empty or out-of-truncation support rejected at construction; Kolmogorov field matches the formula.
-- Accept (OU normalisation, CPU only): `N = 32`, `band(4, 6)`, `Δt = 0.01τ_f`, seed fixed, `M = 4000` realisations. Drive the forced modes with `u' = f` from `u = 0` (no other term). At the start of a step (`u_n` with `f_n`, after `update_forcing!`), measure the injection as the grid mean `⟨u·f⟩` of the physical fields plus `½Δt⟨|f|²⟩`. Sample it once per `τ_f` over `t ∈ [20τ_f, 40τ_f]` (samples closer than `τ_f` add no information). Average the samples of each realisation first; the `M` realisation means are independent. Pass when `|mean − ε| ≤ 3.3·std/√M` (99.9% interval; the fixed seed makes the test deterministic). A factor-2 variance error or a non-Hermitian generator lies far outside this interval. Budget: under 60 s on CPU. On CUDA, the test checks instead that 100 steps with the same seed give the CPU forcing sequence to round-off. The physical grid mean catches both a wrong factor 2 in the OU variance and a non-Hermitian `kx = 0` column.
+- Accept (OU normalisation, CPU only): `N = 32`, `band(4, 6)`, `Δt = 0.01τ_f`, seed fixed, `M = 4000` realisations. Drive the forced modes with `u' = f` from `u = 0` (no other term). At the start of a step (`u_n` with `f_n`, after `update_forcing!`), measure the injection as the grid mean `⟨u·f⟩` of the physical fields plus `½Δt⟨|f|²⟩`. Sample it once per `τ_f` over `t ∈ [20τ_f, 40τ_f]` (samples closer than `τ_f` add no information). Average the samples of each realisation first; the `M` realisation means are independent. Pass when `|mean − ε| ≤ 3.3·std/√M` (99.9% interval; the fixed seed makes the test deterministic). A factor-2 variance error and a non-Hermitian generator both lie outside this interval for every seed. Budget: under 60 s on CPU. On CUDA, the test checks instead that 100 steps with the same seed give the CPU forcing sequence to round-off.
 - Accept: every generated `f̂` is Hermitian on the `kx = 0` column.
 - Accept: phases change only at multiples of `τ_r`; solenoidal output when the compressive fraction is 0.
 
 ### WP-10 Compressible right-hand side
 Status: todo. ← WP-3, WP-6. ADRs: 0002, 0004.
-- Continuity, velocity equation with `∇h(ρ)`, explicit viscous remainder, `κ` term; all products in physical space, tendencies truncated.
+- Continuity, velocity equation with `∇h(ρ)`, explicit viscous remainder, `κ` term; all products in physical space, tendencies truncated. `rhs!` calls `add_forcing!` (same hook as WP-6), so the compressive forcing fraction applies here.
 - Accept: uniform state at rest stays at rest; a small acoustic wave has frequency `c_s k`; mass `⟨ρ⟩` conserved to round-off; with `ρ = 1` and solenoidal `u`, the solenoidal part of the tendency equals the incompressible one.
 
 ### WP-11 Compressible diagnostics
 Status: todo. ← WP-8, WP-10. ADRs: 0009, 0011.
 - `w = √ρ u`, `s = ω/√ρ`; spectra and fluxes with the `_inc` / `_comp` split; `E_int`, `Omega`, `p_theta`, `Ma`; `κ` terms in the budgets.
 - `record_injection!` for the compressible model: rates from the global budgets of the specification, `⟨ρu·f⟩ + ½Δt⟨ρ|f|²⟩` for `E_kin` and `⟨q curl f⟩ + ½Δt⟨|curl f|²/ρ⟩` for `Omega`, at the start of the step.
-- Accept: with `ρ = 1`, compressible diagnostics, including the injection rates, equal the incompressible ones. **Non-blocking**: `Pi_kin` over all grid modes = 0 (Lamb form, specification §4 note 2); `Pi_Omega(k_max)` floor drops with `N`.
+- Accept: with `ρ = 1`, compressible diagnostics, including the injection rates, equal the incompressible ones.
+- Accept: forcing-only compressible run (`nonlinear = false`, `μ = ζ = κ = α = 0`, OU forcing with a compressive fraction) with fixed nonuniform `ρ = 1 + 0.1 cos(x + y)`: `|inj_E_kin − ΔE_kin/Δt| ≤ 10·eps(T)·E_kin/Δt` and the same for `Omega`. Formulas that drop `ρ` pass at `ρ = 1` but fail here by about 6%. **Non-blocking**: `Pi_kin` over all grid modes = 0 (Lamb form, specification §4 note 2); `Pi_Omega(k_max)` floor drops with `N`.
 
 ### WP-12 NetCDF I/O and restart
 Status: todo. ← WP-7, WP-8, WP-9. ADRs: 0009.
