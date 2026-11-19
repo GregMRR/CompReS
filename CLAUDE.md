@@ -10,6 +10,7 @@ Implementation in progress by work packages in `docs/ROADMAP.md`; each WP status
 - `docs/ns2d_equations.tex`: the binding equations, invariants, spectra and fluxes (ADR-0002). Cite equation names from it in docstrings.
 - `docs/adr/`: design decisions in chronological order. Read the ADRs a work package lists before editing.
 - `docs/ROADMAP.md`: work packages, dependencies, interfaces, acceptance tests, target user API and package layout.
+- `docs/BACKLOG.md`: possible future changes (performance, robustness) that no WP covers yet. Add every new idea there; move an entry into a WP when it becomes work.
 
 ## Commands
 - All blocking tests: `julia --project -e 'using Pkg; Pkg.test()'` (CPU always, CUDA when `CUDA.functional()`).
