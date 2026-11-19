@@ -43,4 +43,9 @@ export band, modes, support, KolmogorovForcing, OUForcing, RandomPhaseForcing, m
 
 include("nonlinear_compressible.jl")
 
+include("diagnostics/registry.jl")
+export Diagnostic, register_diagnostic!, select_diagnostics, default_diagnostics, record_injection!
+
+include("diagnostics/incompressible.jl")
+
 end

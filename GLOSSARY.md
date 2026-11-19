@@ -23,6 +23,10 @@ _Avoid_: viscous term, viscosity (alone), hyperviscosity
 The rate at which a dissipation term removes a quadratic quantity, for example `2νZ` for `E_kin` in the incompressible model, or `⟨D⟩` with `D = τ_ij∂_ju_i` in the compressible model. Each rate is labelled small-scale or large-scale after the term that produces it.
 _Avoid_: dissipation (alone, when the rate is meant)
 
+**Injection rate**:
+The rate at which the forcing adds a quadratic quantity, for example `inj_E_kin`, measured at the start of a step with the forcing of that step.
+_Avoid_: input, production
+
 **Large-scale dissipation**:
 The user-set damping `−α(−∇²)^{−m}u` that removes energy at large scales; `m = 0` is linear friction, `m ≥ 1` is hypoviscosity.
 _Avoid_: drag, friction (alone)
@@ -86,6 +90,9 @@ _Avoid_: E_K, E (alone)
 **Enstrophy**:
 `Z = ½⟨ω²⟩`. Conserved only in the incompressible model.
 
+**Palinstrophy**:
+`P = ½⟨|∇ω|²⟩`. In the incompressible model the small-scale dissipation removes `Z` at the rate `2νP`.
+
 **Potential enstrophy**:
 `Ω = ½⟨ω²/ρ⟩`, the quadratic invariant of the compressible model.
 _Avoid_: enstrophy (in the compressible model)
@@ -97,6 +104,9 @@ One simulation from an initial condition or restart to its end time, with one se
 
 **Output class**:
 A named group of diagnostics sampled with one common period: GLOBAL, SPECTRAL or FIELDS.
+
+**Diagnostic**:
+A named function `(state, problem, workspace) → value` registered under the output class GLOBAL (one number) or SPECTRAL (one value per shell).
 
 **Snapshot**:
 One FIELDS sample: all independent physical-space fields at one time, plus the forcing state. A snapshot is also a valid restart input.

@@ -50,18 +50,25 @@ The fields are:
   `\\mu\\nabla^2\\mathbf{u} + \\zeta\\nabla\\theta`, and `spectral`, one spectral field.
 - `forcing`: a `NamedTuple` `(ux, uy)` of spectral fields for the forcing `\\hat{\\mathbf{f}}` of the
   current step, which [`update_forcing!`](@ref) writes (WP-9). They are zero outside the forcing support.
+- `diagnostics`: the buffers of the diagnostics (WP-8): `density`, a real array of the spectral size for
+  one value per mode; `shells`, a real vector with one value per shell of the grid; `shell_order`
+  and `shell_start`, the integer vectors of the shell reduction (the linear indices of all modes sorted
+  by shell, and the position of the first mode of each shell in that order, plus one end position);
+  `nonlinear`, a `NamedTuple` `(ux, uy)` of spectral fields for the nonlinear term of the fluxes; and
+  `injection`, a `Dict{Symbol,T}` of the injection rates that [`record_injection!`](@ref) stores.
 
 A work package adds its buffers as one more field of this struct, built in this constructor.
 A buffer per state field is a `NamedTuple` built with `map` over `state.fields`, as `physical` is;
 it then follows the model without a branch. Code reads a buffer by name, for example
 `ws.physical.ux`, and the typed fields keep every access type-stable.
 """
-struct Workspace{TR<:Transforms,P<:NamedTuple,A<:AbstractMatrix,C,F<:NamedTuple}
+struct Workspace{TR<:Transforms,P<:NamedTuple,A<:AbstractMatrix,C,F<:NamedTuple,D<:NamedTuple}
     transforms::TR
     physical::P
     vorticity::A
     compressible::C
     forcing::F
+    diagnostics::D
 end
 
 # Buffers of the compressible rhs! (WP-10); the incompressible model needs none.
@@ -71,10 +78,26 @@ compressible_buffers(grid::Grid{T}, ::NamedTuple{(:ux, :uy, :rho)}) where {T} =
      viscous_y = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny),
      spectral = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny))
 
+# Buffers of the diagnostics (WP-8). The shell reduction reads the modes of shell n at the positions
+# shell_start[n]:(shell_start[n + 1] - 1) of shell_order.
+function diagnostic_buffers(grid::Grid{T}) where {T}
+    shell = vec(Array(grid.shell_index))
+    nshell = length(grid.shell_k)
+    order = Int32.(sortperm(shell))
+    start = Int32.(searchsortedfirst.(Ref(shell[order]), 1:(nshell + 1)))
+    on_device(a) = copyto!(KernelAbstractions.allocate(grid.backend, eltype(a), size(a)), a)
+    spectral() = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny)
+    return (density = KernelAbstractions.zeros(grid.backend, T, grid.Nx ÷ 2 + 1, grid.Ny),
+            shells = KernelAbstractions.zeros(grid.backend, T, nshell),
+            shell_order = on_device(order), shell_start = on_device(start),
+            nonlinear = (ux = spectral(), uy = spectral()), injection = Dict{Symbol,T}())
+end
+
 function Workspace(grid::Grid{T}, state::State{T}) where {T}
     physical = map(_ -> KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny), state.fields)
     vorticity = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny)
     forcing = (ux = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny),
                uy = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny))
-    return Workspace(Transforms(grid), physical, vorticity, compressible_buffers(grid, state.fields), forcing)
+    return Workspace(Transforms(grid), physical, vorticity, compressible_buffers(grid, state.fields), forcing,
+                     diagnostic_buffers(grid))
 end
