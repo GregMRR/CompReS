@@ -40,6 +40,7 @@ Parameters are written as plain Julia numbers. `Simulation` converts every param
 ```
 Project.toml                 weak deps: CUDA, AMDGPU, Makie, Plots
 test/Project.toml            test environment: NS2D via [sources] path "..", Test, CUDA, AMDGPU
+docs/Project.toml            docs environment: NS2D via [sources] path "..", Documenter
 src/NS2D.jl                  module, exports, includes in dependency order
 src/grid.jl                  WP-1
 src/transforms.jl            WP-2
@@ -72,7 +73,8 @@ docs/make.jl, docs/src/                      WP-0, WP-17
 ```
 WP-0 → WP-1 → WP-2
 WP-0 → WP-3
-WP-2 → WP-4, WP-5
+WP-2 → WP-4
+WP-2 + WP-3 → WP-5
 WP-4 + WP-5 → WP-6
 WP-6 → WP-9
 WP-6 + WP-9 → WP-8
@@ -93,15 +95,15 @@ Status: todo. ADRs: 0001, 0011, 0012.
 - `test/runtests.jl`: a `backends()` function that returns `[CPU()]` plus `CUDABackend()` when `CUDA.functional()`; a `@testset` loop that calls each test file's `run_tests(backend)`.
 - `test/amdgpu/runtests.jl` calling the same functions with `ROCBackend()`.
 - `test/nonblocking/runtests.jl` that reports results and always exits 0.
-- `docs/make.jl` with Documenter; `.github/workflows/CI.yml` (CPU tests, docs build and deploy).
+- `docs/make.jl` and `docs/Project.toml` (NS2D through `[sources]`, Documenter); `.github/workflows/CI.yml` (CPU tests, docs build and deploy).
 - Accept: `Pkg.test()` and `julia --project=test test/runtests.jl` pass with one trivial test on CPU and CUDA. Accept (docs): the docs build.
 
 ### WP-1 Grid
 Status: todo. ← WP-0. ADRs: 0003, 0006.
 - `Grid(; Lx, Ly, Nx, Ny, T, backend)`. Rejects odd `N` and unequal spacing: `|Lx/Nx − Ly/Ny| > 1e-12·Lx/Nx`, evaluated in Float64 for every `T`.
 - Galerkin truncation: keep `|k| < k_c` (strict), `k_c = (Nx/3)(2π/Lx)`. The strict bound keeps the disc alias-free also when 3 divides `N` (the self-triad at `|k| = N/3` would fold back inside). Evaluate it on the integer mode indices `(i, j)`: keep the mode iff `9(i²Ny² + j²Nx²) < Nx²Ny²` (Int64), never on float wavenumbers. `k_max` is the largest retained `|k|`.
-- Device arrays for the real-FFT layout `(Nx÷2+1, Ny)`: `kx`, `ky`, `k2`, `truncation` (Bool), `shell_index`; host vectors `shell_k` (centres `nΔk`), `shell_edge` (upper edges `(n+½)Δk`), `shell_count`.
-- Accept: for `Lx = 2π, Nx = 8`, hand-listed `kx`, `ky`, `k_max`, retained modes and shell counts; `N = 12` has no retained mode at `|k| = 4`; rectangle `Lx = 4π, Ly = 2π` example; rejection of unequal spacing; acceptance of `Lx = 0.3, Nx = 30, Ly = 0.1, Ny = 10` with `T = Float64` and `Float32`; `Lx = 0.3, Nx = 30, Ly = 0.9, Ny = 90` does not keep mode `(0, 30)`.
+- Device arrays for the real-FFT layout `(Nx÷2+1, Ny)`: `kx`, `ky`, `k2`, `truncation` (Bool), `shell_index`; host vectors `shell_k` (centres `nΔk`), `shell_edge` (upper edges `(n+½)Δk`), `shell_count`. Assign shells on integer indices too: mode `(i, j)` is in the smallest shell `n` with `4·Nm²(i²Ny² + j²Nx²) < (2n+1)²Nx²Ny²`, `Nm = max(Nx, Ny)` (Int128, because the products exceed Int64 for `N ≳ 4000`). A mode on an edge then goes to the upper shell, as the specification's half-open shells require.
+- Accept: for `Lx = 2π, Nx = 8`, hand-listed `kx`, `ky`, `k_max`, retained modes and shell counts; `N = 12` has no retained mode at `|k| = 4`; on `Lx = 5·2π, Ly = 4·2π, Nx = 60, Ny = 48`, mode `(6, −14)` lies on an edge and goes to shell 19; rectangle `Lx = 4π, Ly = 2π` example; rejection of unequal spacing; acceptance of `Lx = 0.3, Nx = 30, Ly = 0.1, Ny = 10` with `T = Float64` and `Float32`; `Lx = 0.3, Nx = 30, Ly = 0.9, Ny = 90` does not keep mode `(0, 30)`.
 
 ### WP-2 Transforms and spectral operators
 Status: todo. ← WP-1. ADRs: 0001.
@@ -109,8 +111,8 @@ Status: todo. ← WP-1. ADRs: 0001.
 - `to_spectral!(f̂, f, grid)`, `to_physical!(f, f̂, grid)`, `truncate!(f̂, grid)`, `∂x!`, `∂y!`, `helmholtz_split!(ûs, ûc, û, grid)`, `project_solenoidal!`.
 - Normalisation matches the specification: `f̂(k) = ⟨f e^{−ik·x}⟩`.
 - Derivative multipliers `ikx`, `iky` are zero on the Nyquist column and row, so the discrete derivative is skew-adjoint and keeps Hermitian symmetry (needed by the grid identity of WP-11).
-- `enforce_hermitian!(f̂, grid)`: on the `kx = 0` column set `f̂(0, −ky) = conj(f̂(0, ky))` and make `f̂(0, 0)` real. Every routine that generates spectral values directly (initial conditions, forcing) calls it, because the real-FFT layout stores both `(0, ky)` and `(0, −ky)`.
-- Accept: round trip to round-off; derivatives of `sin(3x)cos(2y)` exact; the multiplier arrays are zero on the Nyquist column and row (checked on the arrays, and on the spectral output of `∂x!` for `cos(Nx x/2)`, not after an inverse FFT, which hides the defect); `enforce_hermitian!` output survives an `irfft`/`rfft` round trip unchanged; `Σ f·∂x g = −Σ g·∂x f` on random grid fields (not truncated) to round-off; projection idempotent, `k·û^s = 0`, `k = 0` mode finite; Parseval `⟨fg⟩ = Σ f̂* ĝ` with the half-plane weights of the real FFT.
+- `enforce_hermitian!(f̂, grid)`: on the `kx = 0` column copy from the source half `ky > 0` to `f̂(0, −ky) = conj(f̂(0, ky))` (one thread per source mode, so no race on GPU), make `f̂(0, 0)` real, and set the Nyquist column and row to zero. Every routine that generates spectral values directly (initial conditions, forcing) calls it, because the real-FFT layout stores both `(0, ky)` and `(0, −ky)`.
+- Accept: round trip to round-off; derivatives of `sin(3x)cos(2y)` exact; the multiplier arrays are zero on the Nyquist column and row (checked on the arrays, and on the spectral output of `∂x!` for `cos(Nx x/2)`, not after an inverse FFT, which hides the defect); `enforce_hermitian!` output, from random untruncated input, survives an `irfft`/`rfft` round trip unchanged to round-off; `Σ f·∂x g = −Σ g·∂x f` on random grid fields (not truncated) to round-off; projection idempotent, `k·û^s = 0`, `k = 0` mode finite; Parseval `⟨fg⟩ = Σ f̂* ĝ` with the half-plane weights of the real FFT.
 
 ### WP-3 Equation of state
 Status: todo. ← WP-0. ADRs: 0008.
@@ -125,8 +127,8 @@ Status: todo. ← WP-2. ADRs: 0002, 0008.
 - Accept: `E_kin` hits its target, computed both spectrally and as the grid mean of the physical field; the field is solenoidal, inside the truncation and Hermitian on the `kx = 0` column (`û(0, −ky) == conj(û(0, ky))`); same seed gives the same field on CPU and CUDA.
 
 ### WP-5 Linear operators and integrating factor
-Status: todo. ← WP-2. ADRs: 0004, 0005.
-- Model types `Incompressible(; ν, large_scale)`, `Compressible(; eos, μ, ζ, κ, large_scale)` (EOS field is parametric, so WP-5 needs no WP-3 code), `LargeScaleDissipation(; α, m)`; `convert_float(T, x)` for each parameter struct.
+Status: todo. ← WP-2, WP-3. ADRs: 0004, 0005.
+- Model types `Incompressible(; ν, large_scale)`, `Compressible(; eos, μ, ζ, κ, large_scale)` (EOS field is parametric; the tests use the WP-3 EOS types), `LargeScaleDissipation(; α, m)`; `convert_float(T, x)` for each parameter struct.
 - Rate arrays for small-scale dissipation, large-scale dissipation (`k = 0` excluded) and density diffusivity.
 - `linear_tendency!` (explicit use) and `propagator(Δt)` (IF use); compressible propagator diagonal in the Helmholtz basis.
 - Interface leaves room for a later per-mode 2×2 acoustic propagator (ADR-0005, open question).
@@ -149,7 +151,7 @@ Status: todo. ← WP-6, WP-9. ADRs: 0009.
 - `register_diagnostic!(class, name, f)`; per-class selection by name.
 - Shell spectra and cumulative fluxes on device, reduced per shell; GLOBAL and SPECTRAL defaults of ADR-0009 for the incompressible model, including the injection rates (from the forcing of WP-9).
 - Flux coordinate: `Pi(K_n)` sums all modes in shells `0…n`, that is `|q| < K_n` with `K_n = (n+½)Δk` (`shell_edge`). It equals the specification's `Π(K)` for every `K` between the largest `|q|` in shells `0…n` and `K_n`, excluding `K_n` itself (on a rectangle a mode can lie exactly on `K_n`; it belongs to shell `n+1`). It is reported at `K_n`; spectra are reported at the shell centres.
-- Injection rate: for forcing held constant over a step, `inj_<q>` is the energy change per step, `Σ w_k (Re[û*·f̂] + ½Δt|f̂|²)` with `û` at the start of the step. The `½Δt|f̂|²` term removes the `O(Δt/τ_f)` bias of the plain product.
+- Injection rate: for forcing held constant over a step, `inj_E_kin = Σ w_k (Re[û*·f̂] + ½Δt|f̂|²)` per unit time, with `û` and `f̂` both taken at the start of the step; `inj_Z` uses the same form with weights `w_k|k|²`. The `½Δt|f̂|²` term removes the `O(Δt/τ_f)` bias of the plain product. Compressible rates follow the global budgets of the specification (`⟨ρu·f⟩`, `⟨q curl f⟩`) with the matching `½Δt` term (`½Δt⟨ρ|f|²⟩`, `½Δt⟨|curl f|²/ρ⟩`). Because a diagnostic sees the state after the step, `step!` computes these rates at the start of each step and stores them in the workspace; the `inj_*` diagnostics read the stored values.
 - Accept: spectrum of a single mode lands in the right shell with the right value; `Σ shells = E_kin`. **Blocking**: `Pi_kin(k_max) = Pi_Z(k_max) = 0` on a random projected field.
 
 ### WP-9 Forcing
@@ -159,7 +161,7 @@ Status: todo. ← WP-6. ADRs: 0007.
 - `add_forcing!` methods for each type: add `f̂` to the tendency. The incompressible model always projects `f̂`; a nonzero compressive fraction is allowed only with the compressible model, and the constructor or `Simulation` rejects it otherwise.
 - Generated forcing values pass through `enforce_hermitian!` (WP-2). `convert_float(T, forcing)`.
 - Accept: hand-counted support on `N = 16`; `band` on `Lx = 4π, Ly = 2π` selects by physical `|k|`; empty or out-of-truncation support rejected at construction; Kolmogorov field matches the formula.
-- Accept (OU normalisation): `N = 32`, `band(4, 6)`, `Δt = 0.01τ_f`, seed fixed, `M = 4000` realisations. Drive the forced modes with `u' = f` from `u = 0` (no other term). Measure the injection as the grid mean `⟨u·f⟩` of the physical fields plus `½Δt⟨|f|²⟩`, averaged over `t ∈ [20τ_f, 40τ_f]`. Pass when it lies within the 95% interval around `ε`. The physical grid mean catches both a wrong factor 2 in the OU variance and a non-Hermitian `kx = 0` column.
+- Accept (OU normalisation, CPU only): `N = 32`, `band(4, 6)`, `Δt = 0.01τ_f`, seed fixed, `M = 4000` realisations. Drive the forced modes with `u' = f` from `u = 0` (no other term). At the start of a step (`u_n` with `f_n`, after `update_forcing!`), measure the injection as the grid mean `⟨u·f⟩` of the physical fields plus `½Δt⟨|f|²⟩`. Sample it once per `τ_f` over `t ∈ [20τ_f, 40τ_f]` (samples closer than `τ_f` add no information). Pass when the mean lies within the 95% interval around `ε`. Budget: under 60 s on CPU. On CUDA, the test checks instead that 100 steps with the same seed give the CPU forcing sequence to round-off. The physical grid mean catches both a wrong factor 2 in the OU variance and a non-Hermitian `kx = 0` column.
 - Accept: every generated `f̂` is Hermitian on the `kx = 0` column.
 - Accept: phases change only at multiples of `τ_r`; solenoidal output when the compressive fraction is 0.
 
@@ -187,7 +189,7 @@ Status: todo. ← WP-7, WP-12. ADRs: 0009, 0010.
 ### WP-14 Balanced-density routine
 Status: todo. ← WP-7, WP-11. ADRs: 0013.
 - `balanced_density(u, eos, grid)`: solve `∇²h = −∂_i∂_j(u_iu_j)` for `h` up to a constant; find the constant `h₀` by a scalar root find so that `⟨density_from_enthalpy(h + h₀)⟩ = 1`; return `ρ = density_from_enthalpy(h + h₀)` truncated to the disc. (Shifting `ρ` after the inversion changes `∇h` for a nonlinear `h(ρ)`.)
-- Accept, `μ = ζ = κ = 0`, cellular flow, `Ma = 0.1`, `Isothermal` and `Polytropic(γ = 1.4)`: `θ(0) = 0` to round-off; `∂_tθ(0)` relative to `max|k_ik_j(u_iu_j)^|` is below `1e-12` at `N = 64` (truncating `ρ̂` leaves a residual that falls spectrally with `N`; at `N = 16` it is about `1e-8`). With viscosity, `∂_tθ(0) = O(μ Ma²)`, because `∂_i(1/ρ)∇²u_i ≠ 0`.
+- Accept, `μ = ζ = κ = 0`, cellular flow, `Ma = 0.1`, `Isothermal` and `Polytropic(γ = 1.4)`: `θ(0) = 0` to round-off; `∂_tθ(0)` relative to `max|k_ik_j(u_iu_j)^|` (the value for uniform `ρ`) is below `1e-9` at `N = 64`. Truncating `ρ̂` leaves a residual that falls spectrally with `N` (about `1e-8` at `N = 16`); below that sits a round-off floor that grows with `N` (`h(1)` is about `10³` times its variation; floor about `2e-12` at `N = 64`, `1.5e-11` at `N = 256`). The wrong procedure (shifting `ρ`) gives about `1e-5`. With viscosity, `∂_tθ(0) = O(μ Ma²)`, because `∂_i(1/ρ)∇²u_i ≠ 0`.
 - Accept: at `Ma = 0.1`, the maximum of `E_kin_comp` over `t ∈ [0, 10 max(Lx, Ly)/c_s]` is at least 10 times lower than with uniform `ρ`.
 
 ### WP-15 Visualisation extensions and acceptance animation
