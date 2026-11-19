@@ -6,7 +6,7 @@ Every test is a function of the backend. `test/runtests.jl` runs each test on th
 
 Five tiers (a work package names the tier of each acceptance item; amended by ADR-0015):
 
-1. **Blocking** (`Pkg.test`, must pass on CPU and CUDA):
+1. **Blocking** (`Pkg.test`, must pass on CPU and CUDA). Exception: a statistical test that is too slow on GPU runs on CPU only, and its CUDA counterpart checks that the device reproduces the CPU sequence for the same seed (amended by ADR-0016):
    - Integrating factor: every scheme reaches its order on `y' = −2y + y²` with the IF on, through the production `step!`.
    - Incompressible fluxes: `Pi_kin(k_max) = Pi_Z(k_max) = 0` to round-off on a random field projected to `θ = 0`.
    - Conservation: unforced, `ν = 0`, incompressible. Measure `|E_kin(T) − E_kin(0)|/E_kin(0)` and the same for `Z` at fixed `T` for four values of `Δt`. Fit the slope of the log–log plot. Pass when the slope is at least `r − 0.2` for Euler (`r = 1`), RK2 (`r = 2`) and RK4 (`r = 4`). A lower bound accepts superconvergence (RK schemes can converge one order faster on quadratic invariants). Choose `Δt` so that every error stays above `1e-12`.
