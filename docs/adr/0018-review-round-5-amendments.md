@@ -8,3 +8,4 @@ Review round 5 of `docs/ROADMAP.md` (report: `reviews/docs/ROADMAP/r5.md`) found
 - **Injection tolerance scaled by `E_kin/Δt`.** The energy difference cancels, so a tolerance relative to `ΔE/Δt` fails correct code.
 - **`problem` and the stored `f̂`.** `step!(state, problem, workspace, Δt)`; `update_forcing!` stores `f̂` in the workspace for `record_injection!`. Stored rates start as NaN, which GLOBAL writes as the fill value before the first step of a run segment.
 - **Compressible `rhs!` calls `add_forcing!`.**
+- **CPU-only exception (ADR-0011).** ADR-0011 now states it explicitly; test functions use `is_cpu(backend)`.
