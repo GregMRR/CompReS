@@ -156,7 +156,7 @@ Status: todo. ← WP-6, WP-9. ADRs: 0009.
 - Accept: spectrum of a single mode lands in the right shell with the right value; `Σ shells = E_kin`. **Blocking**: `Pi_kin(k_max) = Pi_Z(k_max) = 0` on a random projected field.
 
 ### WP-9 Forcing
-Status: todo. ← WP-6. ADRs: 0007.
+Status: done 32d0299. ← WP-6. ADRs: 0007.
 - `band(k_start, k_end)` in physical wavenumber units (`|k|`, not mode index), `modes` (integer mode indices), `support(pred)`; constructors take the grid first: `KolmogorovForcing(grid; F, n)`, `OUForcing(grid, support; ε, τ_f, seed)`, `RandomPhaseForcing(grid, support; f_rms, τ_r, seed)`; keyword `compressive_fraction` (default 0); `amp(k)`; per-step seeding by `(seed, step)`; `forcing_state` and `set_forcing_state!` for restart.
 - `update_forcing!(forcing, state, workspace, Δt)`: advance the forcing state once per step (OU update, phase redraw) and write the new `f̂` into the workspace; called by `step!` (WP-7).
 - `add_forcing!` methods for each type: add `f̂` to the tendency. The incompressible model always projects `f̂`; a nonzero compressive fraction is allowed only with the compressible model, and the constructor or `Simulation` rejects it otherwise.
@@ -167,7 +167,7 @@ Status: todo. ← WP-6. ADRs: 0007.
 - Accept: phases change only at multiples of `τ_r`; solenoidal output when the compressive fraction is 0.
 
 ### WP-10 Compressible right-hand side
-Status: todo. ← WP-3, WP-6. ADRs: 0002, 0004.
+Status: done 32d0299. ← WP-3, WP-6. ADRs: 0002, 0004.
 - Continuity, velocity equation with `∇h(ρ)`, explicit viscous remainder, `κ` term; all products in physical space, tendencies truncated. `rhs!` calls `add_forcing!` (same hook as WP-6), so the compressive forcing fraction applies here. With `nonlinear = false` it keeps only the linear terms and the forcing; with `κ = 0` the density then stays fixed.
 - Accept: uniform state at rest stays at rest; a small acoustic wave has frequency `c_s k`; mass `⟨ρ⟩` conserved to round-off; with `ρ = 1` and solenoidal `u`, the solenoidal part of the tendency equals the incompressible one.
 
