@@ -1,6 +1,6 @@
 *~
 .*.un~
-/Manifest.toml
+Manifest.toml
 /runs/
 /docs/build/
 *.aux
