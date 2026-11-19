@@ -1,6 +1,9 @@
 # Roadmap: work packages
 
-Each work package (WP) is sized for one subagent. Read `CLAUDE.md`, `GLOSSARY.md` and the ADRs listed in the WP before starting. A WP is done when its acceptance tests pass on CPU and CUDA (`Pkg.test`), its public symbols have docstrings, and its status line below says `done` with the commit sha.
+Each work package (WP) is sized for one subagent. Read `CLAUDE.md`, `GLOSSARY.md` and the ADRs listed in the WP before starting. A WP is done when all three conditions hold:
+1. Every acceptance item is met in its tier: **blocking** items pass in `Pkg.test` on CPU and CUDA; **non-blocking** items run in `test/nonblocking/` and report their values; **user** items have a `pass` entry from the user in `test/acceptance/RESULTS.md`; **benchmark** items meet their stated bound. An item with no tier label is blocking.
+2. Its public symbols have docstrings.
+3. Its status line below says `done` with the commit sha.
 
 Notation: `WP-n ← WP-a, WP-b` means WP-n needs WP-a and WP-b done first. WPs with no mutual dependency can run in parallel.
 
@@ -14,7 +17,7 @@ using NS2D
 grid    = Grid(; Lx = 2π, Ly = 2π, Nx = 512, Ny = 512, T = Float64, backend = CPU())
 model   = Compressible(; eos = Isothermal(cs = 10.0), μ = 1e-4, ζ = 0.0, κ = 0.0,
                          large_scale = LargeScaleDissipation(α = 0.1, m = 0))
-forcing = OUForcing(band(4, 6); ε = 1.0, τ_f = 0.05, seed = 1)
+forcing = OUForcing(grid, band(4, 6); ε = 1.0, τ_f = 0.05, seed = 1)   # band in physical |k|
 
 sim = Simulation(grid, model; forcing, scheme = RK4(), integrating_factor = true, Δt = 1e-4,
                  outputs = (GLOBAL   = Output(period = 0.01),
@@ -29,6 +32,8 @@ run!(sim; t_end = 10.0)
 ```
 
 `Incompressible(; ν, large_scale)` replaces `Compressible(...)` for the incompressible model.
+
+Parameters are written as plain Julia numbers. `Simulation` converts every parameter struct (model, EOS, forcing) to the float type `T` of the grid, so a Float32 run never promotes to Float64 (ADR-0006). The initial density is uniform, `ρ = 1`, unless the initial condition sets `rho`.
 
 ## Package layout (target)
 
@@ -52,7 +57,7 @@ src/io.jl                    WP-12
 src/simulation.jl            WP-13
 src/balanced_density.jl      WP-14
 ext/NS2DCUDAExt.jl, ext/NS2DAMDGPUExt.jl     WP-0
-ext/NS2DMakieExt.jl, ext/NS2DPlotsExt.jl     WP-15
+ext/NS2DMakieExt.jl (trigger: Makie), ext/NS2DPlotsExt.jl (trigger: Plots)   WP-15
 test/runtests.jl, test/<module>.jl           blocking tier
 test/nonblocking/runtests.jl                 non-blocking tier
 test/acceptance/                             user-inspected animation
@@ -66,13 +71,14 @@ docs/make.jl, docs/src/                      WP-0, WP-17
 ```
 WP-0 → WP-1 → WP-2
 WP-0 → WP-3
-WP-2 → WP-4, WP-5, WP-9
+WP-2 → WP-4, WP-5
 WP-4 + WP-5 → WP-6
-WP-5 + WP-6 → WP-7
-WP-6 → WP-8
+WP-6 → WP-9
+WP-6 + WP-9 → WP-8
+WP-5 + WP-6 + WP-8 → WP-7
 WP-3 + WP-6 → WP-10
 WP-8 + WP-10 → WP-11
-WP-10 → WP-14
+WP-7 + WP-11 → WP-14
 WP-7 + WP-8 + WP-9 → WP-12
 WP-7 + WP-12 → WP-13
 WP-13 → WP-15, WP-16, WP-17, WP-18 (late)
@@ -82,7 +88,7 @@ WP-13 → WP-15, WP-16, WP-17, WP-18 (late)
 
 ### WP-0 Package skeleton and test harness
 Status: todo. ADRs: 0001, 0011, 0012.
-- `Project.toml` with deps (KernelAbstractions, AbstractFFTs, FFTW, NCDatasets, TimerOutputs, Random, TOML) and weak deps; empty extensions that load.
+- `Project.toml` with deps (KernelAbstractions, AbstractFFTs, FFTW, NCDatasets, TimerOutputs, Random, TOML) and weak deps; empty extensions that load. CUDA and AMDGPU are also test dependencies (`[extras]` and `[targets]`).
 - `test/runtests.jl`: a `backends()` function that returns `[CPU()]` plus `CUDABackend()` when `CUDA.functional()`; a `@testset` loop that calls each test file's `run_tests(backend)`.
 - `test/amdgpu/runtests.jl` calling the same functions with `ROCBackend()`.
 - `test/nonblocking/runtests.jl` that reports results and always exits 0.
@@ -91,56 +97,64 @@ Status: todo. ADRs: 0001, 0011, 0012.
 
 ### WP-1 Grid
 Status: todo. ← WP-0. ADRs: 0003, 0006.
-- `Grid(; Lx, Ly, Nx, Ny, T, backend)`. Rejects `Lx/Nx ≠ Ly/Ny` and odd `N`.
-- Device arrays for the real-FFT layout `(Nx÷2+1, Ny)`: `kx`, `ky`, `k2`, `truncation` (Bool, `|k| ≤ k_max`), `shell_index`; host vectors `shell_k`, `shell_count`.
-- Accept: for `Lx = 2π, Nx = 8`, hand-listed `kx`, `ky`, `k_max`, retained modes and shell counts; rectangle `Lx = 4π, Ly = 2π` example; rejection of unequal spacing.
+- `Grid(; Lx, Ly, Nx, Ny, T, backend)`. Rejects odd `N` and unequal spacing: `|Lx/Nx − Ly/Ny| > 1e-12·Lx/Nx`.
+- Galerkin truncation: keep `|k| < k_c` (strict), `k_c = (Nx/3)(2π/Lx)`. The strict bound keeps the disc alias-free also when 3 divides `N` (the self-triad at `|k| = N/3` would fold back inside). `k_max` is the largest retained `|k|`.
+- Device arrays for the real-FFT layout `(Nx÷2+1, Ny)`: `kx`, `ky`, `k2`, `truncation` (Bool), `shell_index`; host vectors `shell_k` (centres `nΔk`), `shell_edge` (upper edges `(n+½)Δk`), `shell_count`.
+- Accept: for `Lx = 2π, Nx = 8`, hand-listed `kx`, `ky`, `k_max`, retained modes and shell counts; `N = 12` has no retained mode at `|k| = 4`; rectangle `Lx = 4π, Ly = 2π` example; rejection of unequal spacing; acceptance of `Lx = 0.3, Nx = 30, Ly = 0.1, Ny = 10`.
 
 ### WP-2 Transforms and spectral operators
 Status: todo. ← WP-1. ADRs: 0001.
 - Plans created once per grid (`plan_rfft`, `plan_irfft`) for CPU (FFTW threads), CUDA, AMD.
 - `to_spectral!(f̂, f, grid)`, `to_physical!(f, f̂, grid)`, `truncate!(f̂, grid)`, `∂x!`, `∂y!`, `helmholtz_split!(ûs, ûc, û, grid)`, `project_solenoidal!`.
 - Normalisation matches the specification: `f̂(k) = ⟨f e^{−ik·x}⟩`.
-- Accept: round trip to round-off; derivatives of `sin(3x)cos(2y)` exact; projection idempotent and `k·û^s = 0`; Parseval `⟨fg⟩ = Σ f̂* ĝ` with the half-plane weights of the real FFT.
+- Derivative multipliers `ikx`, `iky` are zero on the Nyquist column and row, so the discrete derivative is skew-adjoint and keeps Hermitian symmetry (needed by the grid identity of WP-11).
+- Accept: round trip to round-off; derivatives of `sin(3x)cos(2y)` exact; derivative of `cos(Nx x/2)` is zero; `Σ f·∂x g = −Σ g·∂x f` on random grid fields (not truncated) to round-off; projection idempotent, `k·û^s = 0`, `k = 0` mode finite; Parseval `⟨fg⟩ = Σ f̂* ĝ` with the half-plane weights of the real FFT.
 
 ### WP-3 Equation of state
 Status: todo. ← WP-0. ADRs: 0008.
-- `Isothermal(cs)`, `Polytropic(K, γ)`; methods `pressure`, `enthalpy`, `sound_speed²`, `density_from_enthalpy`, `internal_energy`.
+- `Isothermal(; cs)`, `Polytropic(; K, γ)`; the five methods of ADR-0008: `pressure`, `enthalpy`, `internal_energy`, `sound_speed²`, `density_from_enthalpy`.
 - Accept: analytic values at chosen `ρ`; `h'(ρ) = p'(ρ)/ρ` and `e'(ρ) = p/ρ²` by finite difference; `density_from_enthalpy ∘ enthalpy = id`; a kernel calling each method runs on the device.
 
 ### WP-4 State and initial conditions
 Status: todo. ← WP-2. ADRs: 0002, 0008.
 - `State` holds spectral fields in a `NamedTuple` (`(:ux, :uy)` or `(:ux, :uy, :rho)`), time `t`, step `n`.
-- `random_velocity(grid; spectrum, E_kin, seed)` (solenoidal, truncated), `kolmogorov(grid; A, n)`, `crossed_kolmogorov(grid; A1, k1, A2, k2)`, `uniform_density`.
+- `Workspace`: all preallocated physical and spectral work arrays and FFT plans. Later WPs add their buffers to it; no other module allocates in the time loop.
+- `random_velocity(grid; spectrum, E_kin, seed)` (solenoidal, truncated; `spectrum(k)` is the target shell spectrum `E_kin_inc(k)` up to a factor that `E_kin` fixes; random phases), `kolmogorov(grid; A, n)`, `crossed_kolmogorov(grid; A1, k1, A2, k2)`, `uniform_density`.
 - Accept: `E_kin` hits its target; the field is solenoidal and inside the truncation; same seed gives the same field on CPU and CUDA.
 
 ### WP-5 Linear operators and integrating factor
 Status: todo. ← WP-2. ADRs: 0004, 0005.
+- Model types `Incompressible(; ν, large_scale)`, `Compressible(; eos, μ, ζ, κ, large_scale)` (EOS field is parametric, so WP-5 needs no WP-3 code), `LargeScaleDissipation(; α, m)`; `convert_float(T, x)` for each parameter struct.
 - Rate arrays for small-scale dissipation, large-scale dissipation (`k = 0` excluded) and density diffusivity.
 - `linear_tendency!` (explicit use) and `propagator(Δt)` (IF use); compressible propagator diagonal in the Helmholtz basis.
 - Interface leaves room for a later per-mode 2×2 acoustic propagator (ADR-0005, open question).
-- Accept: single modes decay at `νk²`, `μk²`, `(μ+ζ)k²`, `α k^{−2m}`; `k = 0` untouched.
+- Accept: single modes decay at `νk²`, `μk²`, `(μ+ζ)k²`, `α k^{−2m}`, `κk²` (density); `k = 0` untouched; `convert_float(Float32, model)` holds only Float32.
 
 ### WP-6 Incompressible nonlinear term
 Status: todo. ← WP-4, WP-5. ADRs: 0002, 0003.
-- Rotational form `ω ẑ × u` with projection; 5 FFTs per evaluation; result truncated.
-- `rhs!(dû, state, model, forcing, workspace)` for the incompressible model.
-- Accept: shear flow `sin(ky) x̂` gives zero to round-off; cellular flow `sin x sin y` gives zero; `Σ Re[û*·N̂] = 0` and `Σ Re[ω̂*·(u·∇ω)^] = 0` to round-off on a random field.
+- Lamb form `(u·∇)u = ∇(½|u|²) + ω ẑ × u`: compute `ω ẑ × u` and project (the projection removes the gradient); 5 FFTs per evaluation; result truncated.
+- `rhs!(dû, state, model, forcing, workspace)` for the incompressible model. It calls the forcing hook `add_forcing!(dû, forcing, state, workspace)`; WP-6 defines `NoForcing` and its no-op method, WP-9 adds the others.
+- Accept: shear flow `sin(ky) x̂` gives zero to round-off; cellular flow with streamfunction `ψ = sin x sin y` (`u = (sin x cos y, −cos x sin y)`) gives zero; `Σ Re[û*·N̂] = 0` and `Σ Re[ω̂*·(u·∇ω)^] = 0` to round-off on a random field.
 
 ### WP-7 Time stepping
-Status: todo. ← WP-5, WP-6. ADRs: 0005.
+Status: todo. ← WP-5, WP-6, WP-8. ADRs: 0005, 0011.
 - Butcher tables `Euler`, `RK2`, `SSPRK3`, `RK4`; one generic `step!` with and without IF; preallocated stage buffers.
-- Accept on scalar ODEs: convergence order 1, 2, 3, 4. **Blocking**: conservation test and Kolmogorov decay test (ADR-0011).
+- Accept: on the scalar ODE `y' = −2y + y²` (`L = −2`, nonlinear part `y²`), convergence orders 1, 2, 3, 4 **both without and with the IF**. Conservation test and Kolmogorov decay test (ADR-0011), with `E_kin` and `Z` from WP-8.
 
 ### WP-8 Diagnostics registry and incompressible diagnostics
-Status: todo. ← WP-6. ADRs: 0009.
+Status: todo. ← WP-6, WP-9. ADRs: 0009.
 - `register_diagnostic!(class, name, f)`; per-class selection by name.
-- Shell spectra and cumulative fluxes on device, reduced per shell; GLOBAL and SPECTRAL defaults of ADR-0009 for the incompressible model.
+- Shell spectra and cumulative fluxes on device, reduced per shell; GLOBAL and SPECTRAL defaults of ADR-0009 for the incompressible model, including the injection rates (from the forcing of WP-9).
+- Flux coordinate: `Pi(K_n)` sums all modes in shells `0…n`, so it is reported at the upper shell edge `K_n = (n+½)Δk` (`shell_edge`); spectra are reported at the shell centres.
 - Accept: spectrum of a single mode lands in the right shell with the right value; `Σ shells = E_kin`. **Blocking**: `Pi_kin(k_max) = Pi_Z(k_max) = 0` on a random projected field.
 
 ### WP-9 Forcing
-Status: todo. ← WP-2. ADRs: 0007.
-- `band(k_start, k_end)`, `modes`, `support`; `KolmogorovForcing`, `OUForcing`, `RandomPhaseForcing`; compressive fraction; `amp(k)`; per-step seeding by `(seed, step)`; `forcing_state` and `set_forcing_state!` for restart.
-- Accept: hand-counted support on `N = 16`; empty or out-of-truncation support rejected; Kolmogorov field matches the formula; OU mean injection within 5% of `ε` over a long sample with white-noise velocity; phases change only at multiples of `τ_r`; solenoidal output when the compressive fraction is 0.
+Status: todo. ← WP-6. ADRs: 0007.
+- `band(k_start, k_end)` in physical wavenumber units (`|k|`, not mode index), `modes` (integer mode indices), `support(pred)`; constructors take the grid first: `KolmogorovForcing(grid; F, n)`, `OUForcing(grid, support; ε, τ_f, seed)`, `RandomPhaseForcing(grid, support; f_rms, τ_r, seed)`; compressive fraction; `amp(k)`; per-step seeding by `(seed, step)`; `forcing_state` and `set_forcing_state!` for restart.
+- `add_forcing!` methods for each type: add `f̂` to the tendency (solenoidal projection unless a compressive fraction is set).
+- Accept: hand-counted support on `N = 16`; `band` on `Lx = 4π, Ly = 2π` selects by physical `|k|`; empty or out-of-truncation support rejected at construction; Kolmogorov field matches the formula.
+- Accept (OU normalisation): drive the forced modes with `u' = f` from `u = 0` (no other term), seed fixed. Over an ensemble of `M` realisations, the mean injection `Σ_support w_k Re[û*·f̂]` at `t ≥ 20τ_f` (half-plane weights `w_k`) lies within the 95% interval around `ε`. This test catches a wrong factor 2 in the complex OU variance.
+- Accept: phases change only at multiples of `τ_r`; solenoidal output when the compressive fraction is 0.
 
 ### WP-10 Compressible right-hand side
 Status: todo. ← WP-3, WP-6. ADRs: 0002, 0004.
@@ -150,33 +164,34 @@ Status: todo. ← WP-3, WP-6. ADRs: 0002, 0004.
 ### WP-11 Compressible diagnostics
 Status: todo. ← WP-8, WP-10. ADRs: 0009, 0011.
 - `w = √ρ u`, `s = ω/√ρ`; spectra and fluxes with the `_inc` / `_comp` split; `E_int`, `Omega`, `p_theta`, `Ma`; `κ` terms in the budgets.
-- Accept: with `ρ = 1`, compressible diagnostics equal the incompressible ones. **Non-blocking**: `Pi_kin` over all grid modes = 0 (rotational form); `Pi_Omega(k_max)` floor drops with `N`.
+- Accept: with `ρ = 1`, compressible diagnostics equal the incompressible ones. **Non-blocking**: `Pi_kin` over all grid modes = 0 (Lamb form, specification §4 note 2); `Pi_Omega(k_max)` floor drops with `N`.
 
 ### WP-12 NetCDF I/O and restart
 Status: todo. ← WP-7, WP-8, WP-9. ADRs: 0009.
-- Writers for `global.nc`, `spectral.nc`, `fields/snap_NNNNNN.nc`; parameters as global attributes; `params.toml`; `read_snapshot`.
-- Accept: written values read back exactly; a run of `2n` steps equals `n` steps + restart + `n` steps bit for bit, with OU forcing.
+- `Output(; period, diagnostics)` per output class; writers for `global.nc`, `spectral.nc`, `fields/snap_NNNNNN.nc`; parameters as global attributes; `params.toml`; `read_snapshot`.
+- Accept: written values read back exactly; the state rebuilt from a snapshot equals the saved state to relative `1e-14`; a run of `2n` steps and a run of `n` steps + restart + `n` steps, with OU forcing, use the identical forcing sequence and agree to relative `1e-12` after `n = 10` steps (ADR-0009).
 
 ### WP-13 Simulation driver
 Status: todo. ← WP-7, WP-12. ADRs: 0009, 0010.
-- `Simulation`, `set_initial_condition!`, `run!`, `restart!`; per-class sampling periods; `run.log` (TimerOutputs, `profile` flag); `max_walltime`; NaN and CFL checks every `n_check` steps.
+- `Simulation`, `set_initial_condition!`, `run!`, `restart!`; parameter conversion to `T`; per-class sampling periods; `run.log` (TimerOutputs, `profile` flag); `max_walltime`; NaN and CFL checks every `n_check` steps.
+- CFL number `C = Δt·max_x[(|u_x| + c)/Δx + (|u_y| + c)/Δy]`, with `c = 0` (incompressible) or `c = max_x c_s(ρ)` (compressible). The run stops when `C > C_stop`; default `C_stop = 1`, user-settable. Euler and RK2 are unstable on undamped oscillating modes at any `C`, so they are for tests, not production; the driver warns when a forced run uses them.
 - Accept: a tiny forced run produces all files; a walltime of 0 writes one snapshot and stops; an injected NaN writes a snapshot and raises an error.
 
 ### WP-14 Balanced-density routine
-Status: todo. ← WP-10. ADRs: 0013.
+Status: todo. ← WP-7, WP-11. ADRs: 0013.
 - `balanced_density(u, eos, grid)`.
-- Accept: `θ` and `∂_tθ` vanish at `t = 0` to the expected order; at `Ma = 0.1` the emitted `E_kin_comp` is at least 10 times lower than with uniform `ρ`.
+- Accept: with `μ = ζ = κ = 0`, `θ(0) = 0` and `∂_tθ(0) = 0` to round-off (with viscosity, `∂_tθ(0) = O(μ Ma²)`, because `∂_i(1/ρ)∇²u_i ≠ 0`). At `Ma = 0.1`, the maximum of `E_kin_comp` over `t ∈ [0, 10 L/c_s]` is at least 10 times lower than with uniform `ρ`.
 
 ### WP-15 Visualisation extensions and acceptance animation
 Status: todo. ← WP-13. ADRs: 0011, 0012.
 - `plot_field`, `plot_spectrum`, `plot_global`, `animate_snapshots` in both extensions.
 - Choose `ν` once for the crossed Kolmogorov run (ADR-0011) and fix it in `test/acceptance/crossed_kolmogorov.jl`. Produce the animation (vorticity plus spectrum tail) and add an entry `pending` to `test/acceptance/RESULTS.md`.
-- Accept: the user records pass in `RESULTS.md`.
+- Accept (user): the user records pass in `RESULTS.md`.
 
 ### WP-16 Benchmark suite
 Status: todo. ← WP-13. ADRs: 0010.
-- `benchmark/run.jl`: time per step and memory over `N` and `(model, scheme, device, T)`; fit; `benchmark/predict.jl` for a target run; TOML output.
-- Accept: fit residual under 10% on this machine for `N = 256 … 4096`.
+- `benchmark/run.jl`: time per step and memory over `N` and `(model, scheme, device, T)`; fit `t_step = a·N² log N + b·N² + c` (the constant `c` absorbs kernel-launch latency on GPU); `benchmark/predict.jl` for a target run; TOML output.
+- Accept (benchmark): fit residual under 10% on this machine for `N = 256 … 4096`, CPU and CUDA.
 
 ### WP-17 Documentation site
 Status: todo. ← WP-13. ADRs: 0012.

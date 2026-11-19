@@ -50,12 +50,12 @@ The set of wavevectors on which a forcing acts. Kolmogorov forcing has support `
 _Avoid_: forcing range, forced shell
 
 **Forcing band**:
-A forcing support of the form `k_start ≤ |k| ≤ k_end`.
+A forcing support of the form `k_start ≤ |k| ≤ k_end`, in physical wavenumbers.
 
 ## Spectral quantities
 
 **Galerkin truncation**:
-The set of retained Fourier modes, `|k| ≤ k_max`; a circular disc.
+The set of retained Fourier modes, the disc `|k| < k_c` with `k_c = N/3` in units of `2π/L`; `k_max` is the largest retained `|k|`.
 _Avoid_: dealiasing mask, cutoff
 
 **Shell**:

@@ -2,7 +2,7 @@
 
 Date: 2026-11-19. Status: accepted.
 
-A forcing is an acceleration `f` that acts on an explicit **forcing support**: a set of wavevectors built by `band(k_start, k_end)` (`k_start ≤ |k| ≤ k_end`), `modes([(kx, ky), …])` or `support(pred)`. The constructor reports the mode count and rejects an empty support or one outside the Galerkin truncation. The forcing stores an index list, so its cost scales with the number of forced modes, not with `N²`.
+A forcing is an acceleration `f` that acts on an explicit **forcing support**: a set of wavevectors built by `band(k_start, k_end)` (`k_start ≤ |k| ≤ k_end`, physical wavenumbers), `modes([(kx, ky), …])` or `support(pred)`. Every forcing constructor takes the grid as its first argument (amended by ADR-0014). The constructor reports the mode count and rejects an empty support or one outside the Galerkin truncation. The forcing stores an index list, so its cost scales with the number of forced modes, not with `N²`.
 
 Types:
 
