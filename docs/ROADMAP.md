@@ -207,7 +207,7 @@ Status: todo. ← WP-13. ADRs: 0010.
 - Accept (benchmark): fit residual under 10% on this machine for `N = 256 … 4096`, CPU and CUDA.
 
 ### WP-17 Documentation site
-Status: todo. ← WP-13. ADRs: 0012.
+Status: done 97f8085. ← WP-13. ADRs: 0012, 0028.
 - Documenter pages: getting started (the target script), equations (link to the specification), API from docstrings, output format, tests and GPU instructions, ADR index.
 - Accept (docs): docs build in CI with no missing docstrings.
 
