@@ -184,13 +184,13 @@ Status: done 865c126. ← WP-7, WP-8, WP-9. ADRs: 0009, 0024.
 - Accept: written values read back exactly (compare with `isequal`, because `inj_*` at `t₀` is NaN); the state rebuilt from a snapshot satisfies `‖û_restart − û‖₂/‖û‖₂ ≤ 10·eps(T)` for `T = Float64` and `Float32`; a run of `2n` steps and a run of `n` steps + restart + `n` steps, with OU forcing, use the identical forcing sequence and agree to `‖·‖₂`-relative `100·eps(T)` after `n = 10` steps (ADR-0009).
 
 ### WP-13 Simulation driver
-Status: todo. ← WP-7, WP-12. ADRs: 0009, 0010.
+Status: done ef3417b. ← WP-7, WP-12. ADRs: 0009, 0010, 0027.
 - `Simulation`, `set_initial_condition!`, `run!`, `restart!`; parameter conversion to `T`; per-class sampling periods; `run.log` (TimerOutputs, `profile` flag); `max_walltime`; NaN and CFL checks every `n_check` steps; the NaN check inspects the state fields only, not diagnostics or stored rates.
 - CFL number `C = Δt·max_x[(|u_x| + c)/Δx + (|u_y| + c)/Δy]`, with `c = 0` (incompressible) or `c = max_x c_s(ρ)` (compressible). The run stops when `C > C_stop`; default `C_stop = 1`, user-settable. Euler and RK2 are unstable on undamped oscillating modes at any `C`, so they are for tests, not production; the driver warns when a forced run uses them.
 - Accept: a tiny forced run produces all files; a walltime of 0 writes one snapshot and stops; an injected NaN writes a snapshot and raises an error.
 
 ### WP-14 Balanced-density routine
-Status: todo. ← WP-7, WP-11. ADRs: 0013.
+Status: done ef3417b. ← WP-7, WP-11. ADRs: 0013, 0026.
 - `balanced_density(u, eos, grid)`: solve `∇²h = −∂_i∂_j(u_iu_j)` for `h` up to a constant; find the constant `h₀` by a scalar root find so that `⟨density_from_enthalpy(h + h₀)⟩ = 1`; return `ρ = density_from_enthalpy(h + h₀)` truncated to the disc. (Shifting `ρ` after the inversion changes `∇h` for a nonlinear `h(ρ)`.)
 - Accept, `μ = ζ = κ = 0`, cellular flow, `Ma = 0.1`, `Isothermal` and `Polytropic(γ = 1.4)`: `θ(0) = 0` to round-off; `∂_tθ(0)` relative to `max|k_ik_j(u_iu_j)^|` (the value for uniform `ρ`) is below `1e-9` at `N = 64`. Truncating `ρ̂` leaves a residual that falls spectrally with `N` (about `1e-8` at `N = 16`); below that sits a round-off floor that grows with `N` (about `2e-12` at `N = 64`, `1.5e-11` at `N = 256`). The wrong procedure (shifting `ρ`) gives about `1e-5`. With viscosity, `∂_tθ(0) = O(μ Ma²)`, because `∂_i(1/ρ)∇²u_i ≠ 0`.
 - Accept: at `Ma = 0.1`, the maximum of `E_kin_comp` over `t ∈ [0, 10 max(Lx, Ly)/c_s]` is at least 10 times lower than with uniform `ρ`.
