@@ -172,15 +172,15 @@ Status: done 32d0299. ← WP-3, WP-6. ADRs: 0002, 0004.
 - Accept: uniform state at rest stays at rest; a small acoustic wave has frequency `c_s k`; mass `⟨ρ⟩` conserved to round-off; with `ρ = 1` and solenoidal `u`, the solenoidal part of the tendency equals the incompressible one.
 
 ### WP-11 Compressible diagnostics
-Status: todo. ← WP-8, WP-10. ADRs: 0009, 0011.
+Status: done 865c126. ← WP-8, WP-10. ADRs: 0009, 0011, 0025.
 - `w = √ρ u`, `s = ω/√ρ`. `√ρ` and `1/ρ` are not band-limited, so `ŵ` and `ŝ` are not truncated: spectra and fluxes sum over all grid modes (shells up to the grid corner), and GLOBAL `E_kin`, `Omega`, `E_int` are grid means of the physical fields. By Parseval the two agree. Spectra and fluxes carry the `_inc` / `_comp` split; `E_int`, `Omega`, `p_theta`, `Ma`; `κ` terms in the budgets.
 - `record_injection!` for the compressible model: rates from the global budgets of the specification, `⟨ρu·f⟩ + ½Δt⟨ρ|f|²⟩` for `E_kin` and `⟨q curl f⟩ + ½Δt⟨|curl f|²/ρ⟩` for `Omega`, at the start of the step.
 - Accept: with `ρ = 1`, compressible diagnostics, including the injection rates, equal the incompressible ones.
 - Accept: forcing-only compressible run (`nonlinear = false`, `μ = ζ = κ = α = 0`, `OUForcing(grid, band(4, 6); ε = 1, τ_f = 0.05, seed = 1, compressive_fraction = 0.5)`, `Δt = 1e-3`), `N = 32`, initial `u` from `random_velocity` (not at rest), fixed nonuniform `ρ = 1 + 0.1 cos(x + y)`, 100 steps, `T = Float64` and `Float32`: `|inj_E_kin − ΔE_kin/Δt| ≤ 10·eps(T)·E_kin(t_{n+1})/Δt`, and the same for `Omega`. A multi-mode band is required: `ρ` couples only modes that differ by `±(1, 1)`, so a single forced mode hides a formula that drops `ρ`. On this set-up such formulas fail by several percent (the exact value depends on the seed), far above the tolerance. **Non-blocking**: `Pi_kin` over all grid modes = 0 (Lamb form, specification §4 note 2); `Pi_Omega(k_max)` floor drops with `N`.
 
 ### WP-12 NetCDF I/O and restart
-Status: todo. ← WP-7, WP-8, WP-9. ADRs: 0009.
-- `Output(; period, diagnostics)` per output class; writers for `global.nc`, `spectral.nc`, `fields/snap_NNNNNN.nc`; parameters as global attributes; `params.toml`; `read_snapshot`.
+Status: done 865c126. ← WP-7, WP-8, WP-9. ADRs: 0009, 0024.
+- `Output(; period, diagnostics)` per output class; writers for `global.nc`, `spectral.nc`, `fields/snap_NNNNNN.nc`; parameters as global attributes; `params.toml`; `read_snapshot!`.
 - Accept: written values read back exactly (compare with `isequal`, because `inj_*` at `t₀` is NaN); the state rebuilt from a snapshot satisfies `‖û_restart − û‖₂/‖û‖₂ ≤ 10·eps(T)` for `T = Float64` and `Float32`; a run of `2n` steps and a run of `n` steps + restart + `n` steps, with OU forcing, use the identical forcing sequence and agree to `‖·‖₂`-relative `100·eps(T)` after `n = 10` steps (ADR-0009).
 
 ### WP-13 Simulation driver
