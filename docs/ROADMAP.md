@@ -120,14 +120,14 @@ Status: done c38fdc4. ← WP-0. ADRs: 0008.
 - Accept: analytic values at chosen `ρ`; `h'(ρ) = p'(ρ)/ρ` and `e'(ρ) = p/ρ²` by finite difference; `density_from_enthalpy ∘ enthalpy = id`; a kernel calling each method runs on the device.
 
 ### WP-4 State and initial conditions
-Status: todo. ← WP-2. ADRs: 0002, 0008.
+Status: done 179a778. ← WP-2. ADRs: 0002, 0008.
 - `State` holds spectral fields in a `NamedTuple` (`(:ux, :uy)` or `(:ux, :uy, :rho)`), time `t`, step `n`.
 - `Workspace(grid, state)`: the `Transforms` and all preallocated work arrays. Later WPs add their buffers to it as one typed field each, built in the constructor; no other module allocates in the time loop.
 - `random_velocity(grid; spectrum, E_kin, seed)` (solenoidal, truncated; `spectrum(k)` is the target shell spectrum `E_kin_inc(k)` up to a factor that `E_kin` fixes; random phases), `kolmogorov(grid; A, n)`, `crossed_kolmogorov(grid; A1, k1, A2, k2)`, `uniform_density`.
 - Accept: `E_kin` hits its target, computed both spectrally and as the grid mean of the physical field; the field is solenoidal, inside the truncation and Hermitian on the `kx = 0` column (`û(0, −ky) == conj(û(0, ky))`); same seed gives the same field on CPU and CUDA.
 
 ### WP-5 Linear operators and integrating factor
-Status: todo. ← WP-2, WP-3. ADRs: 0004, 0005.
+Status: done d96cb38. ← WP-2, WP-3. ADRs: 0004, 0005.
 - Model types `Incompressible(; ν, large_scale, nonlinear = true)`, `Compressible(; eos, μ, ζ, κ, large_scale, nonlinear = true)`; `nonlinear = false` is a test switch that drops every term except the linear ones and the forcing (incompressible: the advection; compressible: advection, pressure, viscous remainder and the continuity flux, so `ρ` stays fixed) (EOS field is parametric; the tests use the WP-3 EOS types), `LargeScaleDissipation(; α, m)`; `convert_float(T, x)` for each parameter struct.
 - Rate arrays for small-scale dissipation, large-scale dissipation (`k = 0` excluded) and density diffusivity.
 - `linear_rates(grid, model)`; `linear_tendency!(dû, û, rates)` (explicit use) and `propagate!(out, û, rates, τ)` (IF use, computes `exp(−στ)` per mode for any `τ = cΔt`); compressible propagator diagonal in the Helmholtz basis.
