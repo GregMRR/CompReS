@@ -90,7 +90,7 @@ WP-13 → WP-15, WP-16, WP-17, WP-18 (late)
 ## Work packages
 
 ### WP-0 Package skeleton and test harness
-Status: todo. ADRs: 0001, 0011, 0012.
+Status: done a7daa08. ADRs: 0001, 0011, 0012.
 - `Project.toml` with deps (KernelAbstractions, AbstractFFTs, FFTW, NCDatasets, TimerOutputs, Random, TOML) and weak deps; empty extensions that load. Tests use their own environment `test/Project.toml` (NS2D through `[sources]` with `path = ".."`, plus Test, CUDA, AMDGPU), so `julia --project=test test/<file>.jl` works outside `Pkg.test`.
 - `test/runtests.jl`: a `backends()` function that returns `[CPU()]` plus `CUDABackend()` when `CUDA.functional()`; a `@testset` loop that calls each test file's `run_tests(backend)`. A helper `is_cpu(backend)` lets a test function run a CPU-only item (ADR-0011 exception) and its device counterpart on the other backends.
 - `test/amdgpu/runtests.jl` calling the same functions with `ROCBackend()`.
