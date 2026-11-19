@@ -15,6 +15,9 @@ this function after the nonlinear term. The method for [`NoForcing`](@ref) leave
 """
 add_forcing!(dû, ::NoForcing, state, workspace) = dû
 
+# Throw an ArgumentError when `forcing` cannot act on `model`; forcing.jl adds the methods that reject.
+check_forcing(model, forcing) = nothing
+
 """
     Problem(grid::Grid{T}, model, forcing)
 
@@ -22,6 +25,8 @@ Everything the right-hand side needs: `grid`, `model` (an [`Incompressible`](@re
 [`Compressible`](@ref) model), `forcing` and the linear rates `rates` of [`linear_rates`](@ref).
 The constructor converts `model` to the float type `T` of the grid (ADR-0006).
 [`rhs!`](@ref) evaluates the tendency of a `Problem`; the time stepping advances it.
+The constructor throws an `ArgumentError` when `forcing` has a nonzero `compressive_fraction` and
+`model` is [`Incompressible`](@ref).
 """
 struct Problem{G<:Grid,M,F,R}
     grid::G
@@ -31,6 +36,7 @@ struct Problem{G<:Grid,M,F,R}
 end
 
 function Problem(grid::Grid{T}, model, forcing) where {T}
+    check_forcing(model, forcing)
     m = convert_float(T, model)
     return Problem(grid, m, forcing, linear_rates(grid, m))
 end

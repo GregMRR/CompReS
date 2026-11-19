@@ -45,20 +45,36 @@ The fields are:
 - `physical`: a `NamedTuple` of real `Nx × Ny` arrays, one per state field and with the same name,
   for the physical-space values of that field (`ux`, `uy` and, compressible model only, `rho`).
 - `vorticity`: a real `Nx × Ny` array for the physical-space vorticity `\\omega` (WP-6).
+- `compressible`: `nothing` for the incompressible model. For the compressible model, the buffers of
+  its [`rhs!`](@ref) (WP-10): `viscous_x`, `viscous_y`, real `Nx × Ny` arrays for the physical-space
+  `\\mu\\nabla^2\\mathbf{u} + \\zeta\\nabla\\theta`, and `spectral`, one spectral field.
+- `forcing`: a `NamedTuple` `(ux, uy)` of spectral fields for the forcing `\\hat{\\mathbf{f}}` of the
+  current step, which [`update_forcing!`](@ref) writes (WP-9). They are zero outside the forcing support.
 
 A work package adds its buffers as one more field of this struct, built in this constructor.
 A buffer per state field is a `NamedTuple` built with `map` over `state.fields`, as `physical` is;
 it then follows the model without a branch. Code reads a buffer by name, for example
 `ws.physical.ux`, and the typed fields keep every access type-stable.
 """
-struct Workspace{TR<:Transforms,P<:NamedTuple,A<:AbstractMatrix}
+struct Workspace{TR<:Transforms,P<:NamedTuple,A<:AbstractMatrix,C,F<:NamedTuple}
     transforms::TR
     physical::P
     vorticity::A
+    compressible::C
+    forcing::F
 end
+
+# Buffers of the compressible rhs! (WP-10); the incompressible model needs none.
+compressible_buffers(grid, ::NamedTuple{(:ux, :uy)}) = nothing
+compressible_buffers(grid::Grid{T}, ::NamedTuple{(:ux, :uy, :rho)}) where {T} =
+    (viscous_x = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny),
+     viscous_y = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny),
+     spectral = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny))
 
 function Workspace(grid::Grid{T}, state::State{T}) where {T}
     physical = map(_ -> KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny), state.fields)
     vorticity = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny)
-    return Workspace(Transforms(grid), physical, vorticity)
+    forcing = (ux = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny),
+               uy = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny))
+    return Workspace(Transforms(grid), physical, vorticity, compressible_buffers(grid, state.fields), forcing)
 end

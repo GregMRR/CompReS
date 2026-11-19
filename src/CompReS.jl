@@ -11,7 +11,7 @@ using KernelAbstractions
 using AbstractFFTs: plan_rfft, plan_brfft
 using FFTW: FFTW
 using LinearAlgebra: mul!
-using Random: Xoshiro
+using Random: Xoshiro, randn!
 
 export CPU
 
@@ -37,5 +37,10 @@ export LargeScaleDissipation, Incompressible, Compressible, linear_rates, linear
 
 include("nonlinear_incompressible.jl")
 export Problem, NoForcing, rhs!
+
+include("forcing.jl")
+export band, modes, support, KolmogorovForcing, OUForcing, RandomPhaseForcing, mode_count
+
+include("nonlinear_compressible.jl")
 
 end
