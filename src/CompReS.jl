@@ -48,4 +48,7 @@ export Diagnostic, register_diagnostic!, select_diagnostics, default_diagnostics
 
 include("diagnostics/incompressible.jl")
 
+include("timestepping.jl")
+export RungeKuttaScheme, Euler, RK2, SSPRK3, RK4, step!
+
 end

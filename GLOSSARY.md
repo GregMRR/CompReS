@@ -97,6 +97,22 @@ _Avoid_: E_K, E (alone)
 `Ω = ½⟨ω²/ρ⟩`, the quadratic invariant of the compressible model.
 _Avoid_: enstrophy (in the compressible model)
 
+## Time stepping
+
+**Scheme**:
+An explicit Runge–Kutta method given by its Butcher table: `Euler`, `RK2`, `SSPRK3` or `RK4`.
+_Avoid_: integrator, method (alone)
+
+**Stage**:
+One evaluation of the right-hand side inside a step, at the stage value `û^(i)` and node `c_i` of the Butcher table.
+
+**Integrating factor (IF)**:
+The exact integration of the linear terms by the propagator `e^{Lτ}` inside each step (Lawson form); the scheme then integrates only the nonlinear term and the forcing.
+_Avoid_: exponential integrator, ETD
+
+**Time stepper**:
+The `TimeStepper` in the workspace: the scheme, the IF switch and the stage buffers.
+
 ## Runs and output
 
 **Run**:

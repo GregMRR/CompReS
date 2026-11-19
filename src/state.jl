@@ -34,10 +34,11 @@ function State(fields::NamedTuple; t = 0, n = 0)
 end
 
 """
-    Workspace(grid::Grid, state::State)
+    Workspace(grid::Grid, state::State; scheme = RK4(), integrating_factor = true)
 
 The [`Transforms`](@ref) of `grid` and the work arrays of the time loop, allocated once on the
-backend of the grid. The time loop allocates nothing else.
+backend of the grid. The time loop allocates nothing else. `scheme` (a [`RungeKuttaScheme`](@ref)) and
+`integrating_factor` select the time stepping of [`step!`](@ref).
 
 The fields are:
 
@@ -56,19 +57,21 @@ The fields are:
   by shell, and the position of the first mode of each shell in that order, plus one end position);
   `nonlinear`, a `NamedTuple` `(ux, uy)` of spectral fields for the nonlinear term of the fluxes; and
   `injection`, a `Dict{Symbol,T}` of the injection rates that [`record_injection!`](@ref) stores.
+- `stepper`: the [`TimeStepper`](@ref) of `scheme` and `integrating_factor`, with the stage buffers (WP-7).
 
 A work package adds its buffers as one more field of this struct, built in this constructor.
 A buffer per state field is a `NamedTuple` built with `map` over `state.fields`, as `physical` is;
 it then follows the model without a branch. Code reads a buffer by name, for example
 `ws.physical.ux`, and the typed fields keep every access type-stable.
 """
-struct Workspace{TR<:Transforms,P<:NamedTuple,A<:AbstractMatrix,C,F<:NamedTuple,D<:NamedTuple}
+struct Workspace{TR<:Transforms,P<:NamedTuple,A<:AbstractMatrix,C,F<:NamedTuple,D<:NamedTuple,S}
     transforms::TR
     physical::P
     vorticity::A
     compressible::C
     forcing::F
     diagnostics::D
+    stepper::S
 end
 
 # Buffers of the compressible rhs! (WP-10); the incompressible model needs none.
@@ -93,11 +96,11 @@ function diagnostic_buffers(grid::Grid{T}) where {T}
             nonlinear = (ux = spectral(), uy = spectral()), injection = Dict{Symbol,T}())
 end
 
-function Workspace(grid::Grid{T}, state::State{T}) where {T}
+function Workspace(grid::Grid{T}, state::State{T}; scheme = RK4(), integrating_factor::Bool = true) where {T}
     physical = map(_ -> KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny), state.fields)
     vorticity = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny)
     forcing = (ux = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny),
                uy = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny))
     return Workspace(Transforms(grid), physical, vorticity, compressible_buffers(grid, state.fields), forcing,
-                     diagnostic_buffers(grid))
+                     diagnostic_buffers(grid), TimeStepper(scheme, integrating_factor, state.fields))
 end
