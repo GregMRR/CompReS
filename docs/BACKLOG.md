@@ -44,22 +44,22 @@ This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Ea
 - Change: WP-16 measures the kernel time against plain threaded loops. If POCL is slow, add a CPU path.
 - Source: WP-1 to WP-10 test logs.
 
+### Time the FFTs in the profile mode
+- Cost: the profile mode of `run!` times the tasks of `step!` (`rhs!`, stage combination, forcing, injection), not the FFTs and the pointwise kernels inside `rhs!`. ADR-0010 lists FFT timings.
+- Change: pass the profile timer to `rhs!` and time each transform and kernel with `@profiled`.
+- Source: WP-13 report, `src/timestepping.jl`.
+
 ## Robustness
-
-### Check the SSPRK3 integrating-factor growth factor
-- Defect: with the IF, SSPRK3 has `c_3 < c_2`, so its third stage multiplies by `exp(σΔt/2)`. It overflows when `σΔt/2 > log(floatmax(T))` (88 for Float32).
-- Change: `Simulation` (WP-13) checks `max σ·Δt` once at construction and rejects the combination.
-- Source: WP-7 report.
-
-### Guard against a non-positive density
-- Defect: `ρ ≤ 0` raises a `DomainError` from `log` on CPU and gives NaN on GPU.
-- Change: check `minimum(ρ) > 0` together with the NaN check of WP-13, and stop with a clear message.
-- Source: WP-10 review.
 
 ### Seed the OU forcing through the public random API
 - Defect: `src/forcing.jl` calls the internal 4-word `Xoshiro` constructor. A Julia release can change it without notice.
 - Change: derive the per-step generator from `(seed, step)` through public API only. Keep the forcing sequence reproducible across a restart.
 - Source: WP-9 review.
+
+### Reject a polytropic balanced density with a negative enthalpy
+- Defect: for `Polytropic`, `balanced_density` needs `h + h₀ > 0` at every grid point. At a high Mach number the root find evaluates a negative enthalpy: `density_from_enthalpy` raises a `DomainError` on CPU and gives NaN on GPU.
+- Change: check `minimum(h) + h₀ > 0` (and the lower bracket end) and throw an `ArgumentError` that names the Mach number limit.
+- Source: WP-14 report.
 
 ## Output
 
@@ -72,3 +72,8 @@ This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Ea
 - Defect: `read_snapshot!` expects a snapshot of the float type of the state; it does not check the attribute `float_type`.
 - Change: compare `float_type` with the grid and either reject or convert with a warning.
 - Source: WP-12 report.
+
+### Keep the old records of a restart without loading them
+- Cost: a continued run reads the kept records of `spectral.nc` into memory and writes them into a new file. At N = 8192 with 10⁴ samples and 8 diagnostics, this is about 3.7 GB.
+- Change: copy the records in chunks of time, or truncate the unlimited dimension in place.
+- Source: WP-13 report, `src/simulation.jl` (`kept_records`).

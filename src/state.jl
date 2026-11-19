@@ -34,11 +34,12 @@ function State(fields::NamedTuple; t = 0, n = 0)
 end
 
 """
-    Workspace(grid::Grid, state::State; scheme = RK4(), integrating_factor = true)
+    Workspace(grid::Grid, state::State; scheme = RK4(), integrating_factor = true, timer = nothing)
 
 The [`Transforms`](@ref) of `grid` and the work arrays of the time loop, allocated once on the
 backend of the grid. The time loop allocates nothing else. `scheme` (a [`RungeKuttaScheme`](@ref)) and
-`integrating_factor` select the time stepping of [`step!`](@ref).
+`integrating_factor` select the time stepping of [`step!`](@ref); `timer` (`nothing` or a `TimerOutput`)
+switches on the profile mode of the [`TimeStepper`](@ref).
 
 The fields are:
 
@@ -102,11 +103,12 @@ function diagnostic_buffers(grid::Grid{T}) where {T}
             nonlinear = (ux = spectral(), uy = spectral()), injection = Dict{Symbol,T}())
 end
 
-function Workspace(grid::Grid{T}, state::State{T}; scheme = RK4(), integrating_factor::Bool = true) where {T}
+function Workspace(grid::Grid{T}, state::State{T}; scheme = RK4(), integrating_factor::Bool = true,
+                   timer = nothing) where {T}
     physical = map(_ -> KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny), state.fields)
     vorticity = KernelAbstractions.zeros(grid.backend, T, grid.Nx, grid.Ny)
     forcing = (ux = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny),
                uy = KernelAbstractions.zeros(grid.backend, Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny))
     return Workspace(Transforms(grid), physical, vorticity, compressible_buffers(grid, state.fields), forcing,
-                     diagnostic_buffers(grid), TimeStepper(scheme, integrating_factor, state.fields))
+                     diagnostic_buffers(grid), TimeStepper(scheme, integrating_factor, state.fields; timer))
 end

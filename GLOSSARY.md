@@ -34,6 +34,10 @@ _Avoid_: drag, friction (alone)
 **Density diffusivity**:
 The coefficient `κ` of the regularising term `κ∇²ρ` in the continuity equation.
 
+**Balanced density**:
+The initial `ρ` that `balanced_density` returns for a solenoidal `u`: `ρ = ρ(h + h₀)` with `∇²h = −∂_i∂_j(u_iu_j)` and `h₀` set by `⟨ρ⟩ = 1`. It makes `θ = 0` and `∂_tθ = 0` at `t = 0` for `μ = ζ = κ = 0`, so the run starts without the acoustic waves of a uniform `ρ` (ADR-0013).
+_Avoid_: hydrostatic density, equilibrium density
+
 ## Forcing
 
 **Forcing**:
@@ -136,6 +140,14 @@ _Avoid_: dump, checkpoint
 
 **Snapshot index**:
 The running number of FIELDS samples of a run, 0 at the start time. It names the file `snap_NNNNNN.nc`; it is not the step number.
+
+**Run segment**:
+One call of `run!`: from the current state to `t_end` or an earlier stop. A run made of several segments (restarts, or several `run!` calls) has one history in its output directory.
+_Avoid_: job, chunk
+
+**CFL number**:
+`C = Δt·max_x[(|u_x| + c)/Δx + (|u_y| + c)/Δy]`, with `c = 0` (incompressible) or `c = max_x c_s(ρ)` (compressible); the run stops when `C > C_stop`.
+_Avoid_: Courant number
 
 **Runtime log**:
 The per-run record of wall-clock timings of the solver tasks.

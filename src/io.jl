@@ -221,13 +221,15 @@ coordinates `x` and `y`; the physical-space fields of the state, `ux`, `uy` and,
 `rho`, of size `(x, y)`; the time `t`; the step `n` (`Int64`); and the [`forcing_state`](@ref) of
 `problem.forcing` as the variables `forcing_<name>`. A complex vector is stored with the dimension
 `complex` of size 2 (real part, imaginary part). The attributes are those of [`open_global`](@ref) with
-`output_class = "FIELDS"` and no `period`. The function overwrites `workspace.physical`.
+`output_class = "FIELDS"` and no `period`, plus `snapshot_index = index` (`Int64`), which [`restart!`](@ref)
+reads to continue the numbering. The function overwrites `workspace.physical`.
 """
 function write_snapshot(dir, index::Integer, state, problem, workspace; run::NamedTuple = (;))
     grid = problem.grid
     T = typeof(grid.Lx)
     path = joinpath(dir, "snap_$(lpad(index, 6, '0')).nc")
     ds = create_file(path, problem, :FIELDS, nothing, run)
+    ds.attrib["snapshot_index"] = Int64(index)
     try
         defDim(ds, "x", grid.Nx)
         defDim(ds, "y", grid.Ny)

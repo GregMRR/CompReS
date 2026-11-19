@@ -12,7 +12,8 @@ using AbstractFFTs: plan_rfft, plan_brfft
 using FFTW: FFTW
 using LinearAlgebra: mul!
 using Random: Xoshiro, randn!
-using NCDatasets: NCDataset, defDim, defVar, sync
+using NCDatasets: NCDataset, defDim, defVar, dimnames, sync
+using TimerOutputs: TimerOutput, @timeit, print_timer, reset_timer!
 using TOML: TOML
 
 export CPU
@@ -54,8 +55,14 @@ include("diagnostics/compressible.jl")
 include("timestepping.jl")
 export RungeKuttaScheme, Euler, RK2, SSPRK3, RK4, step!
 
+include("balanced_density.jl")
+export balanced_density
+
 include("io.jl")
 export Output, selected_diagnostics, parameters, write_parameters, open_global, write_global!, open_spectral,
     write_spectral!, write_snapshot, read_snapshot!
+
+include("simulation.jl")
+export Simulation, set_initial_condition!, run!, restart!
 
 end

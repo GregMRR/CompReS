@@ -107,18 +107,22 @@ function combine_ops(::Type{T}, w, c, target, integrating_factor) where {T}
 end
 
 """
-    TimeStepper(scheme::RungeKuttaScheme, integrating_factor::Bool, fields::NamedTuple)
+    TimeStepper(scheme::RungeKuttaScheme, integrating_factor::Bool, fields::NamedTuple; timer = nothing)
 
 The time-stepping part of the [`Workspace`](@ref): the scheme, the integrating-factor switch and the stage
 buffers for the spectral `fields` of a [`State`](@ref), allocated once. [`step!`](@ref) reads it as
 `workspace.stepper`.
 
 The fields are `scheme`, `integrating_factor`, `nodes` (the ``c_i`` in the float type `T` of `fields`),
-`tendencies` (one set of spectral fields per stage, for ``\\mathbf{k}_i``) and `stage` (a [`State`](@ref)
-whose fields hold the stage value ``\\hat{\\mathbf{u}}^{(i)}``). The stage combinations of the Butcher table
-are precomputed as lists of additions and propagations.
+`tendencies` (one set of spectral fields per stage, for ``\\mathbf{k}_i``), `stage` (a [`State`](@ref)
+whose fields hold the stage value ``\\hat{\\mathbf{u}}^{(i)}``) and `timer`. The stage combinations of the
+Butcher table are precomputed as lists of additions and propagations.
+
+`timer` is `nothing` or a `TimerOutput` of TimerOutputs.jl. With a `TimerOutput`, [`step!`](@ref) times each
+of its tasks into it, with a device synchronisation before and after each task (the profile mode of the
+runtime log, ADR-0010). The synchronisations slow a GPU run. With `nothing`, `step!` times nothing.
 """
-struct TimeStepper{S<:RungeKuttaScheme,T<:AbstractFloat,F<:NamedTuple,ST<:State}
+struct TimeStepper{S<:RungeKuttaScheme,T<:AbstractFloat,F<:NamedTuple,ST<:State,TM<:Union{Nothing,TimerOutput}}
     scheme::S
     integrating_factor::Bool
     nodes::Vector{T}
@@ -126,9 +130,10 @@ struct TimeStepper{S<:RungeKuttaScheme,T<:AbstractFloat,F<:NamedTuple,ST<:State}
     final_ops::Vector{CombineOp{T}}
     tendencies::Vector{F}
     stage::ST
+    timer::TM
 end
 
-function TimeStepper(scheme::RungeKuttaScheme, integrating_factor::Bool, fields::NamedTuple)
+function TimeStepper(scheme::RungeKuttaScheme, integrating_factor::Bool, fields::NamedTuple; timer = nothing)
     T = real(eltype(first(fields)))
     (; a, b, c) = butcher_table(scheme)
     s = length(b)
@@ -136,7 +141,25 @@ function TimeStepper(scheme::RungeKuttaScheme, integrating_factor::Bool, fields:
     final_ops = combine_ops(T, b, c, 1 // 1, integrating_factor)
     tendencies = [map(similar, fields) for _ in 1:s]
     return TimeStepper(scheme, integrating_factor, T.(c), stage_ops, final_ops, tendencies,
-                       State(map(similar, fields)))
+                       State(map(similar, fields)), timer)
+end
+
+# Evaluate `expr`. When `timer` is a TimerOutput (profile mode), time `expr` under `label`, with a device
+# synchronisation before and after it, so that the time covers the kernels of `expr` only.
+macro profiled(timer, backend, label, expr)
+    return quote
+        local to = $(esc(timer))
+        if to === nothing
+            $(esc(expr))
+        else
+            KernelAbstractions.synchronize($(esc(backend)))
+            @timeit to $(esc(label)) begin
+                local value = $(esc(expr))
+                KernelAbstractions.synchronize($(esc(backend)))
+                value
+            end
+        end
+    end
 end
 
 @kernel function combine_kernel!(out, x, w, k)
@@ -169,9 +192,9 @@ end
 
 # Write the tendency k = F(û) of the stage state `s` into k: the right-hand side, plus the linear terms when
 # the integrating factor does not apply them.
-function tendency!(k, s, problem, ws, integrating_factor)
-    rhs!(k, s, problem, ws)
-    integrating_factor || linear_tendency!(k, s.fields, problem.rates)
+function tendency!(k, s, problem, ws, st, backend)
+    @profiled st.timer backend "rhs!" rhs!(k, s, problem, ws)
+    st.integrating_factor || @profiled st.timer backend "linear terms" linear_tendency!(k, s.fields, problem.rates)
     return k
 end
 
@@ -205,6 +228,9 @@ Each scheme keeps its order with the integrating factor. In [`SSPRK3`](@ref), ``
 stage applies the growth factor ``E(-\\Delta t/2)`` to ``N(\\hat{\\mathbf{u}}^{(2)})``; it overflows when
 ``\\sigma\\Delta t/2`` exceeds `log(floatmax(T))` (88 for Float32) on a mode with rate ``\\sigma``.
 
+When `workspace.stepper.timer` is a `TimerOutput` (profile mode, ADR-0010), the function times the tasks
+`update_forcing!`, `record_injection!`, `rhs!`, `linear terms` and `stage combination` into it.
+
 `problem` provides the fields `forcing` and `rates` and a method of [`rhs!`](@ref); `rates` takes
 [`linear_tendency!`](@ref) and [`propagate!`](@ref) methods. `workspace` provides the field `stepper`, and
 whatever `rhs!`, `update_forcing!` and `record_injection!` read. A test problem that defines these
@@ -214,18 +240,21 @@ stages into the buffers of `workspace.stepper` and the result into `state.fields
 function step!(state::State{T}, problem, ws, Δt) where {T}
     st = ws.stepper
     h = T(Δt)
-    update_forcing!(problem.forcing, state, ws, h)
-    record_injection!(problem, state, ws, h)
+    backend = get_backend(first(state.fields))
+    @profiled st.timer backend "update_forcing!" update_forcing!(problem.forcing, state, ws, h)
+    @profiled st.timer backend "record_injection!" record_injection!(problem, state, ws, h)
     ks = st.tendencies
-    tendency!(ks[1], state, problem, ws, st.integrating_factor)
+    tendency!(ks[1], state, problem, ws, st, backend)
     stage = st.stage
     stage.n = state.n
     for i in 2:length(ks)
-        apply_ops!(stage.fields, state.fields, st.stage_ops[i], ks, problem.rates, h)
+        @profiled st.timer backend "stage combination" apply_ops!(stage.fields, state.fields, st.stage_ops[i], ks,
+                                                                  problem.rates, h)
         stage.t = state.t + st.nodes[i] * h
-        tendency!(ks[i], stage, problem, ws, st.integrating_factor)
+        tendency!(ks[i], stage, problem, ws, st, backend)
     end
-    apply_ops!(state.fields, state.fields, st.final_ops, ks, problem.rates, h)
+    @profiled st.timer backend "stage combination" apply_ops!(state.fields, state.fields, st.final_ops, ks,
+                                                              problem.rates, h)
     state.t += h
     state.n += 1
     return state
