@@ -55,7 +55,7 @@ A forcing support of the form `k_start ≤ |k| ≤ k_end`, in physical wavenumbe
 ## Spectral quantities
 
 **Galerkin truncation**:
-The set of retained Fourier modes, the disc `|k| < k_c` with `k_c = N/3` in units of `2π/L`; `k_max` is the largest retained `|k|`.
+The set of retained Fourier modes, the disc `|k| < k_c` with `k_c = (Nx/3)(2π/Lx)`; `k_max` is the largest retained `|k|`.
 _Avoid_: dealiasing mask, cutoff
 
 **Shell**:

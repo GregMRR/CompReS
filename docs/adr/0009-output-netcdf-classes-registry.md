@@ -12,7 +12,7 @@ Output is NetCDF (NCDatasets.jl). Each run directory holds:
 | `run.log` | runtime log (ADR-0010) |
 | `params.toml` | human-readable copy of all parameters |
 
-Each class has its own sampling period, stored as a file attribute. All parameters are global attributes of every `.nc` file. A snapshot holds the physical-space fields (`ux`, `uy` and, compressible only, `rho`), the forcing state, the seed and the step, and it is the only restart input. A restart reproduces the saved state to round-off (relative `1e-14`), because the physical-to-spectral round trip is not exact in floating point, and it reproduces the forcing sequence exactly (amended by ADR-0014).
+Each class has its own sampling period, stored as a file attribute. All parameters are global attributes of every `.nc` file. A snapshot holds the physical-space fields (`ux`, `uy` and, compressible only, `rho`), the forcing state, the seed and the step, and it is the only restart input. A restart reproduces the saved state to round-off (`‖û_restart − û‖₂/‖û‖₂ ≤ 10·eps(T)`), because the physical-to-spectral round trip is not exact in floating point, and it reproduces the forcing sequence exactly (amended by ADR-0014).
 
 A **diagnostic** is a named function `(state, workspace) → value` registered under one output class. A run selects diagnostics by name; a new diagnostic is one function and one registration line.
 

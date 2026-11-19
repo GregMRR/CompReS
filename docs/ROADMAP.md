@@ -1,7 +1,7 @@
 # Roadmap: work packages
 
 Each work package (WP) is sized for one subagent. Read `CLAUDE.md`, `GLOSSARY.md` and the ADRs listed in the WP before starting. A WP is done when all three conditions hold:
-1. Every acceptance item is met in its tier: **blocking** items pass in `Pkg.test` on CPU and CUDA; **non-blocking** items run in `test/nonblocking/` and report their values; **user** items have a `pass` entry from the user in `test/acceptance/RESULTS.md`; **benchmark** items meet their stated bound. An item with no tier label is blocking.
+1. Every acceptance item is met in its tier: **blocking** items pass in `Pkg.test` on CPU and CUDA; **non-blocking** items run in `test/nonblocking/` and report their values; **user** items have a `pass` entry from the user in `test/acceptance/RESULTS.md`; **benchmark** items meet their stated bound; **docs** items build with `julia --project=docs docs/make.jl` without error. An item with no tier label is blocking.
 2. Its public symbols have docstrings.
 3. Its status line below says `done` with the commit sha.
 
@@ -38,7 +38,8 @@ Parameters are written as plain Julia numbers. `Simulation` converts every param
 ## Package layout (target)
 
 ```
-Project.toml                 weak deps: CUDA, AMDGPU, GLMakie, CairoMakie, Plots
+Project.toml                 weak deps: CUDA, AMDGPU, Makie, Plots
+test/Project.toml            test environment: NS2D via [sources] path "..", Test, CUDA, AMDGPU
 src/NS2D.jl                  module, exports, includes in dependency order
 src/grid.jl                  WP-1
 src/transforms.jl            WP-2
@@ -88,19 +89,19 @@ WP-13 → WP-15, WP-16, WP-17, WP-18 (late)
 
 ### WP-0 Package skeleton and test harness
 Status: todo. ADRs: 0001, 0011, 0012.
-- `Project.toml` with deps (KernelAbstractions, AbstractFFTs, FFTW, NCDatasets, TimerOutputs, Random, TOML) and weak deps; empty extensions that load. CUDA and AMDGPU are also test dependencies (`[extras]` and `[targets]`).
+- `Project.toml` with deps (KernelAbstractions, AbstractFFTs, FFTW, NCDatasets, TimerOutputs, Random, TOML) and weak deps; empty extensions that load. Tests use their own environment `test/Project.toml` (NS2D through `[sources]` with `path = ".."`, plus Test, CUDA, AMDGPU), so `julia --project=test test/<file>.jl` works outside `Pkg.test`.
 - `test/runtests.jl`: a `backends()` function that returns `[CPU()]` plus `CUDABackend()` when `CUDA.functional()`; a `@testset` loop that calls each test file's `run_tests(backend)`.
 - `test/amdgpu/runtests.jl` calling the same functions with `ROCBackend()`.
 - `test/nonblocking/runtests.jl` that reports results and always exits 0.
 - `docs/make.jl` with Documenter; `.github/workflows/CI.yml` (CPU tests, docs build and deploy).
-- Accept: `Pkg.test()` passes with one trivial test on CPU and CUDA; `julia --project=docs docs/make.jl` builds.
+- Accept: `Pkg.test()` and `julia --project=test test/runtests.jl` pass with one trivial test on CPU and CUDA. Accept (docs): the docs build.
 
 ### WP-1 Grid
 Status: todo. ← WP-0. ADRs: 0003, 0006.
-- `Grid(; Lx, Ly, Nx, Ny, T, backend)`. Rejects odd `N` and unequal spacing: `|Lx/Nx − Ly/Ny| > 1e-12·Lx/Nx`.
-- Galerkin truncation: keep `|k| < k_c` (strict), `k_c = (Nx/3)(2π/Lx)`. The strict bound keeps the disc alias-free also when 3 divides `N` (the self-triad at `|k| = N/3` would fold back inside). `k_max` is the largest retained `|k|`.
+- `Grid(; Lx, Ly, Nx, Ny, T, backend)`. Rejects odd `N` and unequal spacing: `|Lx/Nx − Ly/Ny| > 1e-12·Lx/Nx`, evaluated in Float64 for every `T`.
+- Galerkin truncation: keep `|k| < k_c` (strict), `k_c = (Nx/3)(2π/Lx)`. The strict bound keeps the disc alias-free also when 3 divides `N` (the self-triad at `|k| = N/3` would fold back inside). Evaluate it on the integer mode indices `(i, j)`: keep the mode iff `9(i²Ny² + j²Nx²) < Nx²Ny²` (Int64), never on float wavenumbers. `k_max` is the largest retained `|k|`.
 - Device arrays for the real-FFT layout `(Nx÷2+1, Ny)`: `kx`, `ky`, `k2`, `truncation` (Bool), `shell_index`; host vectors `shell_k` (centres `nΔk`), `shell_edge` (upper edges `(n+½)Δk`), `shell_count`.
-- Accept: for `Lx = 2π, Nx = 8`, hand-listed `kx`, `ky`, `k_max`, retained modes and shell counts; `N = 12` has no retained mode at `|k| = 4`; rectangle `Lx = 4π, Ly = 2π` example; rejection of unequal spacing; acceptance of `Lx = 0.3, Nx = 30, Ly = 0.1, Ny = 10`.
+- Accept: for `Lx = 2π, Nx = 8`, hand-listed `kx`, `ky`, `k_max`, retained modes and shell counts; `N = 12` has no retained mode at `|k| = 4`; rectangle `Lx = 4π, Ly = 2π` example; rejection of unequal spacing; acceptance of `Lx = 0.3, Nx = 30, Ly = 0.1, Ny = 10` with `T = Float64` and `Float32`; `Lx = 0.3, Nx = 30, Ly = 0.9, Ny = 90` does not keep mode `(0, 30)`.
 
 ### WP-2 Transforms and spectral operators
 Status: todo. ← WP-1. ADRs: 0001.
@@ -108,11 +109,12 @@ Status: todo. ← WP-1. ADRs: 0001.
 - `to_spectral!(f̂, f, grid)`, `to_physical!(f, f̂, grid)`, `truncate!(f̂, grid)`, `∂x!`, `∂y!`, `helmholtz_split!(ûs, ûc, û, grid)`, `project_solenoidal!`.
 - Normalisation matches the specification: `f̂(k) = ⟨f e^{−ik·x}⟩`.
 - Derivative multipliers `ikx`, `iky` are zero on the Nyquist column and row, so the discrete derivative is skew-adjoint and keeps Hermitian symmetry (needed by the grid identity of WP-11).
-- Accept: round trip to round-off; derivatives of `sin(3x)cos(2y)` exact; derivative of `cos(Nx x/2)` is zero; `Σ f·∂x g = −Σ g·∂x f` on random grid fields (not truncated) to round-off; projection idempotent, `k·û^s = 0`, `k = 0` mode finite; Parseval `⟨fg⟩ = Σ f̂* ĝ` with the half-plane weights of the real FFT.
+- `enforce_hermitian!(f̂, grid)`: on the `kx = 0` column set `f̂(0, −ky) = conj(f̂(0, ky))` and make `f̂(0, 0)` real. Every routine that generates spectral values directly (initial conditions, forcing) calls it, because the real-FFT layout stores both `(0, ky)` and `(0, −ky)`.
+- Accept: round trip to round-off; derivatives of `sin(3x)cos(2y)` exact; the multiplier arrays are zero on the Nyquist column and row (checked on the arrays, and on the spectral output of `∂x!` for `cos(Nx x/2)`, not after an inverse FFT, which hides the defect); `enforce_hermitian!` output survives an `irfft`/`rfft` round trip unchanged; `Σ f·∂x g = −Σ g·∂x f` on random grid fields (not truncated) to round-off; projection idempotent, `k·û^s = 0`, `k = 0` mode finite; Parseval `⟨fg⟩ = Σ f̂* ĝ` with the half-plane weights of the real FFT.
 
 ### WP-3 Equation of state
 Status: todo. ← WP-0. ADRs: 0008.
-- `Isothermal(; cs)`, `Polytropic(; K, γ)`; the five methods of ADR-0008: `pressure`, `enthalpy`, `internal_energy`, `sound_speed²`, `density_from_enthalpy`.
+- `Isothermal(; cs)`, `Polytropic(; K, γ)`; the five methods of ADR-0008: `pressure`, `enthalpy`, `internal_energy`, `sound_speed²`, `density_from_enthalpy`; `convert_float(T, eos)`.
 - Accept: analytic values at chosen `ρ`; `h'(ρ) = p'(ρ)/ρ` and `e'(ρ) = p/ρ²` by finite difference; `density_from_enthalpy ∘ enthalpy = id`; a kernel calling each method runs on the device.
 
 ### WP-4 State and initial conditions
@@ -120,7 +122,7 @@ Status: todo. ← WP-2. ADRs: 0002, 0008.
 - `State` holds spectral fields in a `NamedTuple` (`(:ux, :uy)` or `(:ux, :uy, :rho)`), time `t`, step `n`.
 - `Workspace`: all preallocated physical and spectral work arrays and FFT plans. Later WPs add their buffers to it; no other module allocates in the time loop.
 - `random_velocity(grid; spectrum, E_kin, seed)` (solenoidal, truncated; `spectrum(k)` is the target shell spectrum `E_kin_inc(k)` up to a factor that `E_kin` fixes; random phases), `kolmogorov(grid; A, n)`, `crossed_kolmogorov(grid; A1, k1, A2, k2)`, `uniform_density`.
-- Accept: `E_kin` hits its target; the field is solenoidal and inside the truncation; same seed gives the same field on CPU and CUDA.
+- Accept: `E_kin` hits its target, computed both spectrally and as the grid mean of the physical field; the field is solenoidal, inside the truncation and Hermitian on the `kx = 0` column (`û(0, −ky) == conj(û(0, ky))`); same seed gives the same field on CPU and CUDA.
 
 ### WP-5 Linear operators and integrating factor
 Status: todo. ← WP-2. ADRs: 0004, 0005.
@@ -138,22 +140,27 @@ Status: todo. ← WP-4, WP-5. ADRs: 0002, 0003.
 
 ### WP-7 Time stepping
 Status: todo. ← WP-5, WP-6, WP-8. ADRs: 0005, 0011.
-- Butcher tables `Euler`, `RK2`, `SSPRK3`, `RK4`; one generic `step!` with and without IF; preallocated stage buffers.
-- Accept: on the scalar ODE `y' = −2y + y²` (`L = −2`, nonlinear part `y²`), convergence orders 1, 2, 3, 4 **both without and with the IF**. Conservation test and Kolmogorov decay test (ADR-0011), with `E_kin` and `Z` from WP-8.
+- Butcher tables `Euler`, `RK2`, `SSPRK3`, `RK4`; one generic `step!` with and without IF; preallocated stage buffers. `step!` is generic over the state and the right-hand side, so the same code advances a full grid and a one-mode test problem.
+- `step!` calls `update_forcing!` (WP-9) once, before the first stage; the forcing stays constant inside the stages (ADR-0005).
+- Accept: through the production `step!`, on a one-mode problem `y' = −2y + y²` (`L = −2`, nonlinear part `y²`), convergence orders 1, 2, 3, 4 **both without and with the IF**. Conservation test and Kolmogorov decay test (ADR-0011), with `E_kin` and `Z` from WP-8.
 
 ### WP-8 Diagnostics registry and incompressible diagnostics
 Status: todo. ← WP-6, WP-9. ADRs: 0009.
 - `register_diagnostic!(class, name, f)`; per-class selection by name.
 - Shell spectra and cumulative fluxes on device, reduced per shell; GLOBAL and SPECTRAL defaults of ADR-0009 for the incompressible model, including the injection rates (from the forcing of WP-9).
-- Flux coordinate: `Pi(K_n)` sums all modes in shells `0…n`, so it is reported at the upper shell edge `K_n = (n+½)Δk` (`shell_edge`); spectra are reported at the shell centres.
+- Flux coordinate: `Pi(K_n)` sums all modes in shells `0…n`, that is `|q| < K_n` with `K_n = (n+½)Δk` (`shell_edge`). It equals the specification's `Π(K)` for every `K` between the largest `|q|` in shells `0…n` and `K_n`, excluding `K_n` itself (on a rectangle a mode can lie exactly on `K_n`; it belongs to shell `n+1`). It is reported at `K_n`; spectra are reported at the shell centres.
+- Injection rate: for forcing held constant over a step, `inj_<q>` is the energy change per step, `Σ w_k (Re[û*·f̂] + ½Δt|f̂|²)` with `û` at the start of the step. The `½Δt|f̂|²` term removes the `O(Δt/τ_f)` bias of the plain product.
 - Accept: spectrum of a single mode lands in the right shell with the right value; `Σ shells = E_kin`. **Blocking**: `Pi_kin(k_max) = Pi_Z(k_max) = 0` on a random projected field.
 
 ### WP-9 Forcing
 Status: todo. ← WP-6. ADRs: 0007.
 - `band(k_start, k_end)` in physical wavenumber units (`|k|`, not mode index), `modes` (integer mode indices), `support(pred)`; constructors take the grid first: `KolmogorovForcing(grid; F, n)`, `OUForcing(grid, support; ε, τ_f, seed)`, `RandomPhaseForcing(grid, support; f_rms, τ_r, seed)`; compressive fraction; `amp(k)`; per-step seeding by `(seed, step)`; `forcing_state` and `set_forcing_state!` for restart.
-- `add_forcing!` methods for each type: add `f̂` to the tendency (solenoidal projection unless a compressive fraction is set).
+- `update_forcing!(forcing, state, Δt)`: advance the forcing state once per step (OU update, phase redraw); called by `step!` (WP-7).
+- `add_forcing!` methods for each type: add `f̂` to the tendency. The incompressible model always projects `f̂`; a nonzero compressive fraction is allowed only with the compressible model, and the constructor or `Simulation` rejects it otherwise.
+- Generated forcing values pass through `enforce_hermitian!` (WP-2). `convert_float(T, forcing)`.
 - Accept: hand-counted support on `N = 16`; `band` on `Lx = 4π, Ly = 2π` selects by physical `|k|`; empty or out-of-truncation support rejected at construction; Kolmogorov field matches the formula.
-- Accept (OU normalisation): drive the forced modes with `u' = f` from `u = 0` (no other term), seed fixed. Over an ensemble of `M` realisations, the mean injection `Σ_support w_k Re[û*·f̂]` at `t ≥ 20τ_f` (half-plane weights `w_k`) lies within the 95% interval around `ε`. This test catches a wrong factor 2 in the complex OU variance.
+- Accept (OU normalisation): `N = 32`, `band(4, 6)`, `Δt = 0.01τ_f`, seed fixed, `M = 4000` realisations. Drive the forced modes with `u' = f` from `u = 0` (no other term). Measure the injection as the grid mean `⟨u·f⟩` of the physical fields plus `½Δt⟨|f|²⟩`, averaged over `t ∈ [20τ_f, 40τ_f]`. Pass when it lies within the 95% interval around `ε`. The physical grid mean catches both a wrong factor 2 in the OU variance and a non-Hermitian `kx = 0` column.
+- Accept: every generated `f̂` is Hermitian on the `kx = 0` column.
 - Accept: phases change only at multiples of `τ_r`; solenoidal output when the compressive fraction is 0.
 
 ### WP-10 Compressible right-hand side
@@ -169,7 +176,7 @@ Status: todo. ← WP-8, WP-10. ADRs: 0009, 0011.
 ### WP-12 NetCDF I/O and restart
 Status: todo. ← WP-7, WP-8, WP-9. ADRs: 0009.
 - `Output(; period, diagnostics)` per output class; writers for `global.nc`, `spectral.nc`, `fields/snap_NNNNNN.nc`; parameters as global attributes; `params.toml`; `read_snapshot`.
-- Accept: written values read back exactly; the state rebuilt from a snapshot equals the saved state to relative `1e-14`; a run of `2n` steps and a run of `n` steps + restart + `n` steps, with OU forcing, use the identical forcing sequence and agree to relative `1e-12` after `n = 10` steps (ADR-0009).
+- Accept: written values read back exactly; the state rebuilt from a snapshot satisfies `‖û_restart − û‖₂/‖û‖₂ ≤ 10·eps(T)` for `T = Float64` and `Float32`; a run of `2n` steps and a run of `n` steps + restart + `n` steps, with OU forcing, use the identical forcing sequence and agree to `‖·‖₂`-relative `100·eps(T)` after `n = 10` steps (ADR-0009).
 
 ### WP-13 Simulation driver
 Status: todo. ← WP-7, WP-12. ADRs: 0009, 0010.
@@ -179,8 +186,9 @@ Status: todo. ← WP-7, WP-12. ADRs: 0009, 0010.
 
 ### WP-14 Balanced-density routine
 Status: todo. ← WP-7, WP-11. ADRs: 0013.
-- `balanced_density(u, eos, grid)`.
-- Accept: with `μ = ζ = κ = 0`, `θ(0) = 0` and `∂_tθ(0) = 0` to round-off (with viscosity, `∂_tθ(0) = O(μ Ma²)`, because `∂_i(1/ρ)∇²u_i ≠ 0`). At `Ma = 0.1`, the maximum of `E_kin_comp` over `t ∈ [0, 10 L/c_s]` is at least 10 times lower than with uniform `ρ`.
+- `balanced_density(u, eos, grid)`: solve `∇²h = −∂_i∂_j(u_iu_j)` for `h` up to a constant; find the constant `h₀` by a scalar root find so that `⟨density_from_enthalpy(h + h₀)⟩ = 1`; return `ρ = density_from_enthalpy(h + h₀)` truncated to the disc. (Shifting `ρ` after the inversion changes `∇h` for a nonlinear `h(ρ)`.)
+- Accept, `μ = ζ = κ = 0`, cellular flow, `Ma = 0.1`, `Isothermal` and `Polytropic(γ = 1.4)`: `θ(0) = 0` to round-off; `∂_tθ(0)` relative to `max|k_ik_j(u_iu_j)^|` is below `1e-12` at `N = 64` (truncating `ρ̂` leaves a residual that falls spectrally with `N`; at `N = 16` it is about `1e-8`). With viscosity, `∂_tθ(0) = O(μ Ma²)`, because `∂_i(1/ρ)∇²u_i ≠ 0`.
+- Accept: at `Ma = 0.1`, the maximum of `E_kin_comp` over `t ∈ [0, 10 max(Lx, Ly)/c_s]` is at least 10 times lower than with uniform `ρ`.
 
 ### WP-15 Visualisation extensions and acceptance animation
 Status: todo. ← WP-13. ADRs: 0011, 0012.
@@ -196,7 +204,7 @@ Status: todo. ← WP-13. ADRs: 0010.
 ### WP-17 Documentation site
 Status: todo. ← WP-13. ADRs: 0012.
 - Documenter pages: getting started (the target script), equations (link to the specification), API from docstrings, output format, tests and GPU instructions, ADR index.
-- Accept: docs build in CI with no missing docstrings.
+- Accept (docs): docs build in CI with no missing docstrings.
 
 ### WP-18 Intermittency analysis (late)
 Status: todo. ← WP-13. ADRs: 0012.

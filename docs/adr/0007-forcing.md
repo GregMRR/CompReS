@@ -10,7 +10,7 @@ Types:
 - `OUForcing`: one independent complex Ornstein–Uhlenbeck process per mode, parameters `(ε, τ_f)`. The variance makes the mean injection rate equal `ε` for short `τ_f`. Exact OU update once per step.
 - `RandomPhaseForcing`: fixed amplitudes with rms `f_rms`; all phases are redrawn together every `τ_r` and are constant in between.
 
-The amplitude is uniform over the support, with an optional profile `amp(k)`. In the compressible model the forcing is solenoidal by default; a parameter sets the compressive fraction.
+The amplitude is uniform over the support, with an optional profile `amp(k)`. In the compressible model the forcing is solenoidal by default; a parameter sets the compressive fraction. The incompressible model always projects the forcing and rejects a compressive fraction. Every generated forcing is Hermitian on the `kx = 0` column (amended by ADR-0015).
 
 A new forcing type is one struct plus its methods (same pattern as the EOS, ADR-0008).
 
