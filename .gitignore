@@ -1,0 +1,9 @@
+*~
+.*.un~
+/Manifest.toml
+/runs/
+/docs/build/
+*.aux
+*.log
+!run.log
+*.out

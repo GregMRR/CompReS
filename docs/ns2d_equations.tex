@@ -1,0 +1,208 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+\newcommand{\avg}[1]{\langle #1\rangle}
+\newcommand{\curl}{\operatorname{curl}}
+
+\title{2D Navier--Stokes equations: invariants and fluxes\\
+\large incompressible and compressible, real and Fourier space}
+\author{2DNS project reference}
+\date{v2, 2026-11-19}
+
+\begin{document}
+\maketitle
+
+\section{Conventions}
+
+\begin{itemize}
+\item Periodic box $[0,L)^2$, $\bm x=(x,y)$, $\bm u=(u_x,u_y)$. Repeated indices are summed; $\partial_i=\partial/\partial x_i$.
+\item Space average $\avg{f}=L^{-2}\int f\,d^2x$. All global quantities below are per unit area.
+\item Fourier series: $f(\bm x)=\sum_{\bm k}\hat f(\bm k)\,e^{i\bm k\cdot\bm x}$, $\hat f(\bm k)=\avg{f\,e^{-i\bm k\cdot\bm x}}$, $\bm k\in(2\pi/L)\mathbb Z^2$, $k=|\bm k|$.
+Then $\widehat{\partial_j f}=ik_j\hat f$, and Parseval reads $\avg{fg}=\sum_{\bm k}\hat f^*(\bm k)\,\hat g(\bm k)$ for real $f,g$.
+\item Vorticity $\omega=\curl\bm u=\partial_xu_y-\partial_yu_x$, dilatation $\theta=\partial_iu_i$; for a vector $\bm a$, $\curl\bm a=\partial_xa_y-\partial_ya_x$.
+In Fourier space $\hat\omega=i(k_x\hat u_y-k_y\hat u_x)$ and $\hat\theta=ik_j\hat u_j$.
+\item Shells: $\Delta k=2\pi/L$; $\bm q$ is in shell $k_n=n\Delta k$ if $n-\tfrac12\le|\bm q|/\Delta k<n+\tfrac12$.
+The shell spectrum of a field $a$ is $A(k_n)=\tfrac12\sum_{\bm q\in k_n}|\hat a(\bm q)|^2$, so $\tfrac12\avg{a^2}=\sum_nA(k_n)$.
+\item Flux convention: if $\partial_t\hat a=-\hat N+\dots$, the flux through $K$ is
+$\Pi_a(K)=\sum_{|\bm q|\le K}\mathrm{Re}\,[\hat a^*(\bm q)\hat N(\bm q)]$. Then $\frac{d}{dt}\big(\tfrac12\sum_{|\bm q|\le K}|\hat a|^2\big)\big|_{\rm NL}=-\Pi_a(K)$, and $\Pi_a>0$ means transfer to $|\bm q|>K$.
+\item The forcing $\bm f$ is an acceleration (force per unit mass).
+\end{itemize}
+
+%=====================================================================
+\section{Incompressible fluid}
+
+\subsection{Real space}
+
+\textbf{Equations} ($\rho=\rho_0$, kinematic viscosity $\nu=\mu/\rho_0$):
+\begin{align}
+\partial_iu_i&=0,\qquad
+\partial_tu_i+u_j\partial_ju_i=-\frac{1}{\rho_0}\partial_ip+\nu\nabla^2u_i+f_i,\label{eq:inc}\\
+\nabla^2p&=-\rho_0\,\partial_i\partial_j(u_iu_j)+\rho_0\,\partial_if_i.\label{eq:poisson}
+\end{align}
+The pressure is not an independent field: (\ref{eq:poisson}) is the divergence of (\ref{eq:inc}).
+The curl of (\ref{eq:inc}) gives the vorticity equation:
+\begin{equation}
+\partial_t\omega+u_j\partial_j\omega=\nu\nabla^2\omega+\curl\bm f .
+\end{equation}
+
+\textbf{Invariants} ($\nu=0$, $\bm f=0$): momentum $\avg{\bm u}$, energy $E=\tfrac12\avg{|\bm u|^2}$, enstrophy $Z=\tfrac12\avg{\omega^2}$, and all Casimirs $\avg{F(\omega)}$.
+Only $E$ and $Z$ survive a Galerkin truncation (Sec.~\ref{sec:inc_fourier}).
+
+\textbf{Local balances} (density, flux $\bm J$, sources):
+\begin{align}
+\partial_t\big(\tfrac12|\bm u|^2\big)+\partial_jJ^E_j&=-\nu\,\partial_ju_i\,\partial_ju_i+u_if_i,
+&J^E_j&=u_j\Big(\tfrac12|\bm u|^2+\frac{p}{\rho_0}\Big)-\nu\,\partial_j\big(\tfrac12|\bm u|^2\big),\\
+\partial_t\big(\tfrac12\omega^2\big)+\partial_jJ^Z_j&=-\nu\,|\nabla\omega|^2+\omega\curl\bm f,
+&J^Z_j&=u_j\,\tfrac12\omega^2-\nu\,\partial_j\big(\tfrac12\omega^2\big).
+\end{align}
+
+\textbf{Global budgets.} In a periodic box $\avg{\partial_ju_i\partial_ju_i}=\avg{\omega^2}$. With the palinstrophy $P=\tfrac12\avg{|\nabla\omega|^2}$:
+\begin{equation}
+\frac{dE}{dt}=-2\nu Z+\avg{\bm u\cdot\bm f},\qquad
+\frac{dZ}{dt}=-2\nu P+\avg{\omega\curl\bm f}.
+\end{equation}
+
+\subsection{Fourier space}\label{sec:inc_fourier}
+
+\textbf{Equations.} Let $\bm N=(\bm u\cdot\nabla)\bm u$; for $\theta=0$, $\hat N_l=ik_m\widehat{u_mu_l}$.
+The projector $P_{il}(\bm k)=\delta_{il}-k_ik_l/k^2$ removes the part along $\bm k$. For $\bm k\neq0$:
+\begin{align}
+k_i\hat u_i&=0,\qquad
+\partial_t\hat u_i=-P_{il}(\bm k)\,\hat N_l-\nu k^2\hat u_i+P_{il}(\bm k)\,\hat f_l,\label{eq:inc_fourier}\\
+\hat p&=-\rho_0\,\frac{k_ik_j}{k^2}\,\widehat{u_iu_j}-i\rho_0\,\frac{k_i\hat f_i}{k^2},\\
+\partial_t\hat\omega&=-\widehat{\bm u\cdot\nabla\omega}-\nu k^2\hat\omega+i(k_x\hat f_y-k_y\hat f_x).
+\end{align}
+$\hat p(\bm 0)$ is free; set it to zero. Only $\hat{\bm f}(\bm 0)$ changes $\hat{\bm u}(\bm 0)$.
+Contract (\ref{eq:inc_fourier}) with $k_i$: $\partial_t(k_i\hat u_i)=-\nu k^2k_i\hat u_i$, so the constraint is preserved.
+
+\textbf{Spectra:} $E(k)=\tfrac12\sum_{\bm q\in k}|\hat{\bm u}(\bm q)|^2$ and $Z(k)=\tfrac12\sum_{\bm q\in k}|\hat\omega(\bm q)|^2$.
+Per mode $|\hat\omega|^2=q^2|\hat{\bm u}|^2$, so $Z(k)\simeq k^2E(k)$ (exact up to the shell width).
+
+\textbf{Fluxes.} $\hat{\bm u}$ is solenoidal, so $\hat u_i^*P_{il}\hat N_l=\hat u_i^*\hat N_i$ and
+\begin{equation}
+\Pi_E(K)=\sum_{|\bm q|\le K}\mathrm{Re}\big[\hat{\bm u}^*(\bm q)\cdot\widehat{(\bm u\cdot\nabla)\bm u}(\bm q)\big],\qquad
+\Pi_Z(K)=\sum_{|\bm q|\le K}\mathrm{Re}\big[\hat\omega^*(\bm q)\,\widehat{\bm u\cdot\nabla\omega}(\bm q)\big].
+\end{equation}
+
+\textbf{Spectral budgets} (cumulative, $E_{\le K}=\sum_{|\bm q|\le K}\tfrac12|\hat{\bm u}|^2$, same for $Z$):
+\begin{align}
+\frac{d}{dt}E_{\le K}&=-\Pi_E(K)-\nu\sum_{|\bm q|\le K}q^2|\hat{\bm u}|^2+\sum_{|\bm q|\le K}\mathrm{Re}\big[\hat{\bm u}^*\cdot\hat{\bm f}\big],\\
+\frac{d}{dt}Z_{\le K}&=-\Pi_Z(K)-\nu\sum_{|\bm q|\le K}q^2|\hat\omega|^2+\sum_{|\bm q|\le K}\mathrm{Re}\big[\hat\omega^*\,\widehat{\curl\bm f}\big].
+\end{align}
+
+\textbf{Galerkin truncation.} Keep the modes in a set $\mathcal K$ (2/3 rule, square or circular). Compute $\hat{\bm N}$ on $\mathcal K$ without aliasing.
+Then, for any $K\ge\max_{\mathcal K}|\bm q|$, $\Pi_E(K)=\avg{\bm u\cdot(\bm u\cdot\nabla)\bm u}=-\avg{\theta\,\tfrac12|\bm u|^2}=0$ and $\Pi_Z(K)=-\avg{\theta\,\tfrac12\omega^2}=0$ exactly.
+For the square 2/3 rule this maximum is $\sqrt2\,k_{\max}$, not $k_{\max}$.
+Both identities need $\theta=0$: project a random test field with $P_{il}$ first.
+The truncated system conserves $E$ and $Z$ exactly in semi-discrete form, so only the time stepping makes them drift.
+
+%=====================================================================
+\section{Compressible fluid (barotropic)}
+
+\subsection{Real space}
+
+\textbf{Equations} (conservative and velocity form; shear viscosity $\mu$, bulk viscosity $\zeta$, density diffusivity $\kappa\ge0$):
+\begin{align}
+\partial_t\rho+\partial_i(\rho u_i)&=\kappa\nabla^2\rho,\\
+\partial_t(\rho u_i)+\partial_j(\rho u_iu_j+p\,\delta_{ij}-\tau_{ij})&=\rho f_i+\kappa\,u_i\nabla^2\rho,\\
+\partial_tu_i+u_j\partial_ju_i&=-\partial_ih(\rho)+g_i+f_i,\qquad g_i=\frac{1}{\rho}\partial_j\tau_{ij},\label{eq:comp_vel}\\
+\tau_{ij}&=\mu\big(\partial_iu_j+\partial_ju_i-\delta_{ij}\theta\big)+\zeta\,\delta_{ij}\theta,\\
+\partial_j\tau_{ij}=\mu\nabla^2u_i+\zeta\,\partial_i\theta\quad(\mu,\zeta\ \text{constant}).
+\end{align}
+In 2D the traceless strain subtracts $\delta_{ij}\theta$ (factor $2/d=1$).
+The velocity form (\ref{eq:comp_vel}) does not contain $\kappa$. The term $\kappa\,u_i\nabla^2\rho$ in the momentum equation follows from $\partial_t(\rho u_i)=u_i\partial_t\rho+\rho\,\partial_tu_i$.
+
+\textbf{Equation of state} $p=p(\rho)$, chosen by the user. Define the enthalpy $h$, the internal energy per unit mass $e$ and the sound speed $c_s$:
+\begin{equation}
+h'(\rho)=\frac{p'(\rho)}{\rho},\qquad e'(\rho)=\frac{p(\rho)}{\rho^2},\qquad h=e+\frac p\rho,\qquad c_s^2=p'(\rho).
+\end{equation}
+Isothermal $p=c_s^2\rho$: $h=c_s^2\ln\rho$, $e=c_s^2\ln(\rho/\rho_0)$ (constants in $h$, $e$ do not matter).
+Polytropic $p=K\rho^\gamma$: $h=\frac{K\gamma}{\gamma-1}\rho^{\gamma-1}$, $e=\frac{K}{\gamma-1}\rho^{\gamma-1}$.
+Mach number $\mathrm{Ma}=u_{\rm rms}/c_s(\rho_0)$.
+
+\textbf{Vorticity and potential vorticity.} The curl of (\ref{eq:comp_vel}) removes $\nabla h$:
+\begin{equation}
+\partial_t\omega+\partial_j(u_j\omega)=\curl\bm g+\curl\bm f,\qquad
+\rho\,(\partial_t+u_j\partial_j)\,q=\curl\bm g+\curl\bm f-\kappa\,q\nabla^2\rho,\qquad q=\frac{\omega}{\rho}.
+\end{equation}
+
+\textbf{Invariants} ($\mu=\zeta=\kappa=0$, $\bm f=0$): mass $\avg\rho$, momentum $\avg{\rho\bm u}$, total energy
+$E=E_K+E_I=\avg{\tfrac12\rho|\bm u|^2}+\avg{\rho e(\rho)}$, and the Casimirs $\avg{\rho F(q)}$.
+The quadratic Casimir is the potential enstrophy $\Omega=\tfrac12\avg{\rho q^2}=\tfrac12\avg{\omega^2/\rho}$.
+The enstrophy $Z=\tfrac12\avg{\omega^2}$ is \emph{not} conserved: $dZ/dt|_{\rm NL}=-\tfrac12\avg{\theta\,\omega^2}$.
+For $\rho=\rho_0$, $Z=\rho_0\Omega$.
+For $\kappa>0$, the mass $\avg\rho$ is still conserved. The momentum $\avg{\rho\bm u}$, $E$ and $\Omega$ are not (see the balances below).
+
+\textbf{Local balances.} The viscous dissipation is $D=\tau_{ij}\partial_ju_i=\tfrac\mu2\,|\partial_iu_j+\partial_ju_i-\delta_{ij}\theta|^2+\zeta\theta^2\ge0$.
+\begin{align}
+\partial_t\big(\tfrac12\rho|\bm u|^2\big)+\partial_j\big[u_j(\tfrac12\rho|\bm u|^2+p)-u_i\tau_{ij}\big]&=p\,\theta-D+\rho\,\bm u\cdot\bm f+\tfrac12\kappa|\bm u|^2\nabla^2\rho,\\
+\partial_t(\rho e)+\partial_j(u_j\rho e)&=-p\,\theta+\kappa\,h\,\nabla^2\rho,\\
+\partial_t\big(\tfrac12\rho q^2\big)+\partial_j\big(u_j\tfrac12\rho q^2\big)&=q\curl\bm g+q\curl\bm f-\tfrac12\kappa\,q^2\nabla^2\rho .
+\end{align}
+The pressure--dilatation term $p\theta$ exchanges energy between $E_K$ and $E_I$.
+
+\textbf{Global budgets:}
+\begin{align}
+\frac{dE_K}{dt}&=\avg{p\theta}-\avg{D}+\avg{\rho\bm u\cdot\bm f}+\tfrac12\kappa\avg{|\bm u|^2\nabla^2\rho},\\
+\frac{dE_I}{dt}&=-\avg{p\theta}-\kappa\avg{h'(\rho)\,|\nabla\rho|^2},\\
+\frac{d\Omega}{dt}&=\avg{q\curl\bm g}+\avg{q\curl\bm f}-\tfrac12\kappa\avg{q^2\nabla^2\rho}.
+\end{align}
+The term $\avg{h\nabla^2\rho}=-\avg{h'|\nabla\rho|^2}$ is negative, so the diffusion always lowers $E_I$. The other two $\kappa$ terms have no fixed sign.
+
+\subsection{Fourier space}
+
+\textbf{Equations.} The products are evaluated pseudospectrally. There is no projector, and $\hat\theta\neq0$.
+\begin{align}
+\partial_t\hat\rho&=-ik_j\,\widehat{\rho u_j}-\kappa k^2\hat\rho,\\
+\partial_t\hat u_i&=-\widehat{u_j\partial_ju_i}-ik_i\,\hat h(\rho)+\hat g_i+\hat f_i,\qquad
+g_i=\frac1\rho\big(\mu\nabla^2u_i+\zeta\,\partial_i\theta\big).
+\end{align}
+Helmholtz split: $\hat{\bm u}=\hat{\bm u}^s+\hat{\bm u}^c$, with $\hat u^s_i=P_{ij}\hat u_j$ (solenoidal) and $\hat u^c_i=k_ik_j\hat u_j/k^2$ (compressive).
+
+\textbf{Spectral variables.} $\tfrac12\rho|\bm u|^2$ and $\tfrac12\omega^2/\rho$ are not squares of one field. Use
+$\bm w=\sqrt\rho\,\bm u$ and $s=\omega/\sqrt\rho$, so $E_K=\tfrac12\avg{|\bm w|^2}$ and $\Omega=\tfrac12\avg{s^2}$. Then
+\begin{align}
+\partial_t\hat w_i&=-\hat N^w_i-\widehat{\sqrt\rho\,\partial_ih}+\widehat{\sqrt\rho\,g_i}+\widehat{\sqrt\rho f_i}+\widehat{R^w_i},\\
+\partial_t\hat s&=-\hat N^s+\widehat{\rho^{-1/2}\curl\bm g}+\widehat{\rho^{-1/2}\curl\bm f}+\widehat{R^s},\\
+N^w_i&=\sqrt\rho\,u_j\partial_ju_i+\frac{u_i}{2\sqrt\rho}\,\partial_j(\rho u_j),\qquad
+R^w_i=\frac{\kappa\,u_i\nabla^2\rho}{2\sqrt\rho},\\
+N^s&=\frac{\partial_j(u_j\omega)}{\sqrt\rho}-\frac{\omega}{2\rho^{3/2}}\,\partial_j(\rho u_j),\qquad
+R^s=-\frac{\kappa\,\omega\,\nabla^2\rho}{2\rho^{3/2}}.
+\end{align}
+The terms $R^w_i$ and $R^s$ come from the density diffusion, because $\partial_t\sqrt\rho=\partial_t\rho/(2\sqrt\rho)$.
+These satisfy $\avg{w_iN^w_i}=\avg{\partial_j(\tfrac12\rho u_j|\bm u|^2)}=0$ and $\avg{sN^s}=0$.
+
+\textbf{Spectra:} $E_K(k)=\tfrac12\sum_{\bm q\in k}|\hat{\bm w}|^2$ (split into $\hat{\bm w}^s$, $\hat{\bm w}^c$ as above) and $\Omega(k)=\tfrac12\sum_{\bm q\in k}|\hat s|^2$.
+
+\textbf{Fluxes and budgets:}
+\begin{align}
+\Pi_K(K)&=\sum_{|\bm q|\le K}\mathrm{Re}\big[\hat{\bm w}^*\cdot\hat{\bm N}^w\big],\qquad
+\Pi_\Omega(K)=\sum_{|\bm q|\le K}\mathrm{Re}\big[\hat s^*\,\hat N^s\big],\\
+\frac{d}{dt}E_{K,\le K}&=-\Pi_K(K)+\sum_{|\bm q|\le K}\mathrm{Re}\Big[\hat{\bm w}^*\cdot\big(-\widehat{\sqrt\rho\,\nabla h}+\widehat{\sqrt\rho\,\bm g}+\widehat{\sqrt\rho\,\bm f}+\widehat{\bm R^w}\big)\Big],\\
+\frac{d}{dt}\Omega_{\le K}&=-\Pi_\Omega(K)+\sum_{|\bm q|\le K}\mathrm{Re}\Big[\hat s^*\big(\widehat{\rho^{-1/2}\curl\bm g}+\widehat{\rho^{-1/2}\curl\bm f}+\widehat{R^s}\big)\Big].
+\end{align}
+Summed over all $\bm q$, the pressure term gives $\avg{p\theta}$ and the viscous term gives $-\avg D$ and the $\kappa$ terms give the $\kappa$ terms of the global budgets. $E_I$ has no natural spectral form.
+For $\rho=\rho_0$: $\bm w=\sqrt{\rho_0}\,\bm u$, $s=\omega/\sqrt{\rho_0}$, $\Pi_K=\rho_0\Pi_E$ and $\Pi_\Omega=\Pi_Z/\rho_0$.
+
+%=====================================================================
+\section{Notes for the numerical tests}
+
+\begin{enumerate}
+\item \textbf{Incompressible.} $\Pi_E(K)=\Pi_Z(K)=0$ for $K\ge\max_{\mathcal K}|\bm q|$ holds to round-off (Sec.~\ref{sec:inc_fourier}).
+$E$ and $Z$ drift only by the time-stepping error, $\propto\Delta t^{\,r}$ for a scheme of order $r$.
+\item \textbf{Compressible.} $\sqrt\rho$, $1/\rho$ and $h(\rho)$ are not polynomials, so no 2/3 rule removes their aliasing.
+$\Pi_K$ and $\Pi_\Omega$ at $k_{\max}$ vanish only up to the aliasing error, and the semi-discrete system does not conserve $E$ or $\Omega$ exactly.
+The conservation error then has a spatial floor that does not scale with $\Delta t$.
+A test must either measure the drift above this floor, or use a discretization that conserves exactly on the grid.
+Example for $\Pi_K$: write $u_j\partial_ju_i=\partial_i(\tfrac12|\bm u|^2)+\omega\,(\hat{\bm z}\times\bm u)_i$.
+The second term is orthogonal to $\bm w$ at each point, and the spectral derivative is skew-adjoint on the grid.
+So $\sum_{\rm grid}w_iN^w_i=0$ exactly, when the flux sum runs over \emph{all} grid modes.
+\item Density diffusion ($\kappa>0$) removes the exact conservation of $E$ and $\Omega$ (Sec.~3). Test the nonlinear fluxes $\Pi_K$, $\Pi_\Omega$ with $\kappa=0$, or add the $R$ terms to the budget.
+\item The conserved compressible quantity is $\Omega=\tfrac12\avg{\omega^2/\rho}$, not $Z=\tfrac12\avg{\omega^2}$.
+\item With a constant kinematic viscosity ($\nu\nabla^2\bm u$ in place of $\bm g$), the dissipation $-\avg{\rho\,\bm u\cdot\nu\nabla^2\bm u}$ is not sign-definite.
+\end{enumerate}
+
+\end{document}

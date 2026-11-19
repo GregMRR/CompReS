@@ -1,0 +1,66 @@
+I am a theoretical physicist, I want to start a project to
+perform numerical simulations of the forced-dissipated fully developed compressible
+2D Turbulence at low Mach. I will be mainly interested in characterizing
+intermittency at different Mach numbers. I want you to lay down the design for
+the code I will use, divided in manageable and testable chunks of work, to be
+later performed by subagents. Now follow the main specifics. It has to be
+written in Julia language. The code must be pseudospectral, based in fourier, and run in
+parallel with threads on CPU, GPU nvidia and GPU AMD. CPU and GPU nvidia can be tested on
+this machine and will form the basis for each test pass/reject status building
+the codebase, all the test for the GPU AMD have to be written and stored to be
+run in a second moment. The GPU kernels must be written with the KernelAbstractions.jl package, so the same code runs on NVIDIA and AMD. 
+The code has to be modular, and each module must be
+thoroughly tested on simple, human inspectable examples. The code must be
+explicit and clear, in such a way that human writing/reading of simple
+simulations is intuitive. The code has to be well commented, already in a
+fashion allowing for continuous integration of the documentation on github. The
+code must be well documented also from the point of view of an agent, so that
+gathering context to satisfy an update request is cheap token-wise and quick.
+A CLAUDE.md file will serve as an entry point in the project structure, its
+logic and its writing guidelines. Design choices of this and future phases are
+to be recorded in their chronological order, to contribute context to future
+decisions.  The code has to be optimized for speed, knowing that
+vast and well resolved simulations will be the end objective. Between two
+design choices on par regarding speed, the minimalistic one is to be preferred
+(if it does not present other undesirable characteristics). The datatype has
+to be NetCDF in input and output (meaning snapshot are saved in this format and
+this is the accepted format of a snapshot to restart the simulations). The
+type of data saved have to be flexible and easily modified, for sure a start
+are the three classes: GLOBAL, containing total energy and enstrophy, SPECTRAL,
+containing the energy Fourier spectrum and the fluxes Fourier spectra and
+FIELDS, containing the physical space components of all the independent fields
+(velocity components and density). Each class of data has to record also the
+period of the sampling of the relative elements (it can vary from class to
+class). Every run has to output a runtime log with the various timings of
+different tasks, for future optimization and analysis. A benchmarking suite
+with various tools to estimate run lengths from short tests has to be
+implemented, as the largest simulation will later run in a cluster.
+The characteristics of the code that are set in stone and can be
+exploited for optimization are : the code is 2D, the equations that are
+simulated are in velocity formulation. The code has to be flexible in the
+following aspects. It is possible to switch between compressible and
+incompressible fluid, in the compressible case the Pressure dependence on
+density is chosen by the user. The forcing type is chosen by the user, the
+code has to be flexible enough to accept at least the following types:
+Kolmogorov flow type, Ornstein-Uhlenbeck process, random
+forcing with random phases resets over a given timescale. The small scale
+dissipation is the navier stokes one, whereas at large scale is to be user
+set. The various schemes
+used to evolve the system have to be user chosen as well. In the incompressible
+case there is no density equation, in the compressible one there is a scalar
+equation for density and maybe in the future other coupled scalar equations
+could be added (Not a main design point, but to be kept present). Beyond the
+module checks and benchmarks that i will let you design I want as explicit and
+blocking tests the following. Given that the code will have to be dealiased,
+the definitions of the energy and enstrophy spectral fluxes must always give zero at
+the kmax of the Galerkin truncation, check it on a random velocity field. in
+the unforced, non dissipated setting, only in the
+incompressible cases, it has to be checked that conservation
+laws (energy and enstrophy) hold, with errors scaling appropriately against
+timestep depending on the stepping scheme used (test at least Euler, RK2,
+RK4). the unforced evolution of a Kolmogorov flow initial condition in the
+incompressible case has to be simulated and then extracted in an animation.
+This last animation has to be user inspected and will receive a pass/reject
+statement. Read the .pdf file to get the compressible 2D NS equations,
+together with their incompressible reduction and relevant conserved quantities
+and fluxes. Review the pdf and during questions ask confirmation regarding equation choices 
