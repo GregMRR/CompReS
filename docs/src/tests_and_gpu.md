@@ -8,7 +8,9 @@ Every test is a function `run_tests(backend)`, so the CPU, CUDA and AMD runs sha
 1. **Blocking.** Must pass on the CPU and, when `CUDA.functional()`, on CUDA.
    Contents: unit tests per module on small hand-checkable examples (`N = 8` or `16`), and the integration tests of ADR-0011.
 2. **Non-blocking.** Reports results and always exits 0.
-   Contents: the compressible fluxes (sum over all grid modes, aliasing floor at `k_max`).
+   Contents: the compressible fluxes (sum over all grid modes, aliasing floor at `k_max`);
+   the inviscid invariants `E_tot` and `Omega` of the compressible model (RK4 time-scheme error, aliasing floor against `N`).
+   The second file writes `test/nonblocking/compressible_conservation.png` for visual inspection.
 3. **User acceptance** (`test/acceptance/`). An animation that the user inspects; the result goes to `test/acceptance/RESULTS.md`.
 4. **AMD.** The blocking tests on `ROCBackend()`. Stored; it needs AMD hardware.
 5. **Docs.** `julia --project=docs docs/make.jl` builds without error.
