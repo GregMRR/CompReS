@@ -13,7 +13,7 @@ Five tiers (a work package names the tier of each acceptance item; amended by AD
    - Kolmogorov decay: a single-mode Kolmogorov initial condition decays as `exp(−νk²t)`; with the IF it matches to round-off.
    - All module unit tests.
 2. **Non-blocking** (`test/nonblocking/runtests.jl`, reports only): compressible `Pi_kin` summed over all grid modes is 0 to round-off (Lamb form, specification §4 note 2); compressible `Pi_Omega` at `k_max` drops as `N` grows (aliasing floor).
-3. **User acceptance** (`test/acceptance/`): an animation of the crossed Kolmogorov initial condition `A₁ sin(k₁y) x̂ + A₂ sin(k₂x) ŷ`, `k₁ ≠ k₂`, unforced, small `ν`. The user inspects it and records pass or reject in `test/acceptance/RESULTS.md`. The value of `ν` is chosen once, offline, as the smallest value with `k_max/k_ν ≥ 1.5` at the palinstrophy peak (`k_ν = (2νP/ν³)^{1/6}`) and `Re = U/(k₁ν) ≥ 100`, and is then fixed in the script.
+3. **User acceptance** (`test/acceptance/`): an animation of the crossed Kolmogorov initial condition `A₁ sin(k₁y) x̂ + A₂ sin(k₂x) ŷ`, `k₁ ≠ k₂`, unforced, small `ν`. The user inspects it and records pass or reject in `test/acceptance/RESULTS.md`. The value of `ν` is chosen once, offline, as the smallest value with `k_max/k_ν ≥ 1.5` at the palinstrophy peak (`k_ν = (2νP/ν³)^{1/6}`) and `Re = U/(k₁ν) ≥ 100`, and is then fixed in the script (ADR-0029 proposes another resolution test, the grid-scale vorticity below 1% of `max|ω|`; it awaits the user's decision).
 
 4. **Benchmark** (`benchmark/`): a stated bound, for example the fit residual of WP-16.
 5. **Docs**: `julia --project=docs docs/make.jl` builds without error.

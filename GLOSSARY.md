@@ -151,3 +151,7 @@ _Avoid_: Courant number
 
 **Runtime log**:
 The per-run record of wall-clock timings of the solver tasks.
+
+**Plotting extension**:
+A package extension that adds the methods of the plotting functions for one plotting library: `CompReSMakieExt` (Makie, through CairoMakie or GLMakie) or `CompReSPlotsExt` (Plots). The keyword `library = :Makie` or `:Plots` selects it.
+_Avoid_: backend (reserved for the compute device)

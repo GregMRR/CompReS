@@ -65,4 +65,7 @@ export Output, selected_diagnostics, parameters, write_parameters, open_global, 
 include("simulation.jl")
 export Simulation, set_initial_condition!, run!, restart!
 
+include("plotting.jl")
+export plot_field, plot_spectrum, plot_global, animate_snapshots
+
 end

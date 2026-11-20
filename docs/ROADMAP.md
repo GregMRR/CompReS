@@ -58,6 +58,7 @@ src/forcing.jl               WP-9
 src/io.jl                    WP-12
 src/simulation.jl            WP-13
 src/balanced_density.jl      WP-14
+src/plotting.jl              WP-15 (generic plotting functions and shared file readers)
 ext/CompReSCUDAExt.jl, ext/CompReSAMDGPUExt.jl     WP-0
 ext/CompReSMakieExt.jl (trigger: Makie), ext/CompReSPlotsExt.jl (trigger: Plots)   WP-15
 test/runtests.jl, test/<module>.jl           blocking tier

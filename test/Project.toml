@@ -1,9 +1,11 @@
 [deps]
 AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 CompReS = "7c1f5a52-3b0e-4f0e-9a57-5d2c1e8b6a43"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

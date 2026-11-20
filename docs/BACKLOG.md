@@ -77,3 +77,15 @@ This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Ea
 - Cost: a continued run reads the kept records of `spectral.nc` into memory and writes them into a new file. At N = 8192 with 10⁴ samples and 8 diagnostics, this is about 3.7 GB.
 - Change: copy the records in chunks of time, or truncate the unlimited dimension in place.
 - Source: WP-13 report, `src/simulation.jl` (`kept_records`).
+
+## Plotting
+
+### Plot the fluxes
+- Defect: `plot_spectrum` rejects the SPECTRAL variables with the coordinate `shell_edge` (`Pi_kin`, `Pi_Z`, `Pi_Omega`), because they take both signs and do not fit log–log axes.
+- Change: add `plot_flux(path; names, time)` with a logarithmic `k` axis and a linear value axis, and an optional flux panel in `animate_snapshots`.
+- Source: WP-15 report, ADR-0029.
+
+### Animate large runs faster
+- Cost: `animate_snapshots` reads every snapshot twice (once for the shared colour range, once for the frame), and `field = :omega` builds FFT plans and computes the vorticity on the CPU per snapshot. At N = 512 this is under 1 s per snapshot; at N = 8192 the reads and FFTs dominate.
+- Change: store the field extrema in the snapshot attributes, or build the `Transforms` once per call.
+- Source: WP-15 report, `src/plotting.jl`.
