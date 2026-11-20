@@ -56,3 +56,33 @@ The development machine has an RTX 5070.
 It runs Float64 at about 1/64 of its Float32 rate.
 Timings from this card do not predict timings on a cluster GPU with full-rate Float64.
 Use `T = Float32` for a quick GPU check and `T = Float64` for production runs on a data-centre GPU or on the CPU.
+
+## Benchmarks
+
+The benchmark suite times `step!` and measures the memory of a run (ADR-0010, ADR-0030).
+It has its own environment, `benchmark/`.
+
+```
+julia --project=benchmark -t auto benchmark/run.jl
+julia --project=benchmark -t auto benchmark/run.jl --targets=cuda:Float32 --models=compressible --N=1024,2048
+```
+
+The keys of `run.jl` are `targets` (`device:Type` pairs, `cpu` or `cuda`), `models`, `schemes`, `ifs`, `N` and `out`.
+The default set is both models with RK4 and the integrating factor on `cpu:Float64`, `cuda:Float64` and `cuda:Float32`, for `N = 256 … 4096`.
+The full sweep takes about 4 minutes on the development machine.
+Run nothing else on the machine during a sweep.
+
+The run fits `t_step = a·N² log N + b·N² + c` to each configuration and writes the points and the coefficients to `benchmark/results/<hostname>.toml`.
+The residual of a fit is the maximum over the points of `|fit − t| / t`.
+The result file of the development machine is in the repository.
+A fit does not transfer to another machine: run `run.jl` on the cluster node before you extrapolate.
+
+`predict.jl` reads a result file and prints the time per step, the walltime and the memory of a target run:
+
+```
+julia --project=benchmark benchmark/predict.jl --N=2048 --model=compressible --device=cuda --T=Float32 \
+    --t_end=100 --dt=1e-4
+```
+
+The prediction covers `step!` only; forcing, diagnostics and output add to it.
+`benchmark/cpu_kernel.jl` compares one kernel under the KernelAbstractions `CPU()` backend with a `Threads.@threads` loop.

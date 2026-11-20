@@ -1,0 +1,112 @@
+[meta]
+julia = "1.12.4"
+gpu_memory_bytes = 12322603008
+threads = 40
+cpu = "Intel(R) Xeon(R) w7-3445"
+gpu = "NVIDIA GeForce RTX 5070"
+hostname = "flgtb19521"
+N_log = "natural"
+date = "2026-11-20T01:35:10.299"
+step_time_unit = "s"
+
+[config.incompressible-RK4-IF-cpu-Float64]
+fit_b = -2.583340423976306e-7
+T = "Float64"
+model = "incompressible"
+memory_fit_c = 2.9138608946192595e6
+t_step = [0.004303745, 0.005489685, 0.037029034, 0.251194045, 1.303663158]
+fit_residual = 0.08515374334253552
+fit_c = 0.00616382234831929
+fit_a = 4.1151415093678667e-8
+device = "cpu"
+N = [256, 512, 1024, 2048, 4096]
+memory_fit_m = 181.32663469467983
+scheme = "RK4"
+memory_bytes = [15004128, 48204464, 193889872, 774689824, 3097002856]
+memory_fit_residual = 0.04653274891763975
+integrating_factor = true
+
+[config.compressible-RK4-IF-cuda-Float64]
+fit_b = -1.4941970111261774e-9
+T = "Float64"
+model = "compressible"
+memory_fit_c = 1.296834107256299e7
+t_step = [0.001575054, 0.004325784, 0.019686803, 0.077922194, 0.333335891]
+fit_residual = 0.07844885463621476
+fit_c = 0.0006978742351041479
+fit_a = 2.6156911185374075e-9
+device = "cuda"
+N = [256, 512, 1024, 2048, 4096]
+memory_fit_m = 321.7886266244478
+scheme = "RK4"
+memory_bytes = [33554432, 100663296, 369098752, 1342177280, 5167382528]
+memory_fit_residual = 0.05069261240980858
+integrating_factor = true
+
+[config.compressible-RK4-IF-cuda-Float32]
+fit_b = -1.1357273891124833e-8
+T = "Float32"
+model = "compressible"
+memory_fit_c = 2.3387554026978254e7
+t_step = [0.000416413, 0.000537598, 0.001732491, 0.010456018, 0.068106321]
+fit_residual = 0.07149538617184127
+fit_c = 0.0005156266306920441
+fit_a = 1.8148816342820577e-9
+device = "cuda"
+N = [256, 512, 1024, 2048, 4096]
+memory_fit_m = 162.4479893552803
+scheme = "RK4"
+memory_bytes = [33554432, 67108864, 201326592, 704643072, 2650800128]
+memory_fit_residual = 0.037749484612640494
+integrating_factor = true
+
+[config.incompressible-RK4-IF-cuda-Float32]
+fit_b = -5.177098365724012e-9
+T = "Float32"
+model = "incompressible"
+memory_fit_c = 1.8919977181645732e7
+t_step = [0.000226703, 0.000261026, 0.000741172, 0.003929802, 0.031136269]
+fit_residual = 0.15453550937332045
+fit_c = 0.00028153184921339206
+fit_a = 8.090377442162039e-10
+device = "cuda"
+N = [256, 512, 1024, 2048, 4096]
+memory_fit_m = 99.55527909178969
+scheme = "RK4"
+memory_bytes = [41943040, 33554432, 134217728, 469762048, 1849688064]
+memory_fit_residual = 0.3933574687908825
+integrating_factor = true
+
+[config.incompressible-RK4-IF-cuda-Float64]
+fit_b = -3.5571575649608e-9
+T = "Float64"
+model = "incompressible"
+memory_fit_c = 2.5259393605898768e7
+t_step = [0.000630016, 0.00164084, 0.00732885, 0.031516188, 0.134318952]
+fit_residual = 0.055219099638013844
+fit_c = 0.00033786832274598473
+fit_a = 1.419371335728105e-9
+device = "cuda"
+N = [256, 512, 1024, 2048, 4096]
+memory_fit_m = 197.5870736704416
+scheme = "RK4"
+memory_bytes = [41943040, 67108864, 234881024, 872415232, 3560964096]
+memory_fit_residual = 0.14821880230550488
+integrating_factor = true
+
+[config.compressible-RK4-IF-cpu-Float64]
+fit_b = -5.029075949294038e-7
+T = "Float64"
+model = "compressible"
+memory_fit_c = 363067.09224244556
+t_step = [0.01143813, 0.016325854, 0.10639538, 0.573691783, 2.908956041]
+fit_residual = 0.1518654332779112
+fit_c = 0.013698196008723108
+fit_a = 8.308498893172714e-8
+device = "cpu"
+N = [256, 512, 1024, 2048, 4096]
+memory_fit_m = 296.5624164926238
+scheme = "RK4"
+memory_bytes = [19804624, 78001616, 311447016, 1244820968, 4976764000]
+memory_fit_residual = 0.0013270135491144927
+integrating_factor = true
