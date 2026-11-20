@@ -72,7 +72,7 @@ The default set is both models with RK4 and the integrating factor on `cpu:Float
 The full sweep takes about 4 minutes on the development machine.
 Run nothing else on the machine during a sweep.
 
-The run fits `t_step = a·N² log N + b·N² + c` to each configuration and writes the points and the coefficients to `benchmark/results/<machine>.toml`. The machine label is `--machine=`, else the environment variable `COMPRES_MACHINE`, else the hostname; `predict.jl` takes the same option. The development machine uses `COMPRES_MACHINE=DesktopNvdia`.
+The run fits `t_step = a·N² log N + b·N² + c` to each configuration and writes the points and the coefficients to `benchmark/results/<machine>.toml`. The machine label is `--machine=`, else the environment variable `COMPRES_MACHINE`, else the hostname; `predict.jl` takes the same option. The development machine uses `COMPRES_MACHINE=DesktopNvidia`.
 The residual of a fit is the maximum over the points of `|fit − t| / t`.
 The result file of the development machine is in the repository.
 A fit does not transfer to another machine: run `run.jl` on the cluster node before you extrapolate.

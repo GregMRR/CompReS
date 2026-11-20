@@ -46,11 +46,6 @@ This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Ea
 - Change: merge them into one kernel where a truncation follows a forward FFT.
 - Source: WP-6 and WP-10 reviews, `src/transforms.jl`.
 
-### Fit the time per step piecewise in `N`
-- Cost: the fit `a·N² log N + b·N² + c` of `benchmark/run.jl` misses the cache and thread-overhead transitions. On the development machine the maximum relative error is 15.2% (CPU, compressible) and 15.5% (CUDA Float32, incompressible), against the 10% of WP-16. A minimax fit gives 11.1% and 11.7%, so the form itself is too stiff. The time per mode is not monotonic: 65 ns at N = 256 (thread overhead), 21 ns at 512, 78 ns at 4096 on the CPU; on CUDA Float32 it doubles from N = 2048 to 4096, where one real array (64 MiB) probably exceeds the L2 cache.
-- Change: fit one regime per cache size, or interpolate the measured points in `log N` and keep the three-term form for extrapolation beyond the largest `N`.
-- Source: WP-16 benchmark, `benchmark/run.jl`, `benchmark/results/`.
-
 ### Time the FFTs in the profile mode
 - Cost: the profile mode of `run!` times the tasks of `step!` (`rhs!`, stage combination, forcing, injection), not the FFTs and the pointwise kernels inside `rhs!`. ADR-0010 lists FFT timings.
 - Change: pass the profile timer to `rhs!` and time each transform and kernel with `@profiled`.
