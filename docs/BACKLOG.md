@@ -2,6 +2,13 @@
 
 This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Each entry names the cost or defect, the proposed change, and where it came from. When an entry becomes work, move it into a WP and delete it here.
 
+## Analysis
+
+### Intermittency analysis (WP-18)
+- Defect: the solver has no analysis of the FIELDS snapshots, which is the purpose of the project.
+- Change: specify WP-18 in detail with the user (increments, structure functions, increment PDFs, their dependence on the Mach number), then implement it as an offline module.
+- Source: the user postponed WP-18 on 2026-11-20; `docs/ROADMAP.md`, WP-18.
+
 ## Performance
 
 ### Fuse the stage combinations of `step!`

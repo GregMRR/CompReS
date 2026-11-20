@@ -18,7 +18,7 @@ Implementation in progress by work packages in `docs/ROADMAP.md`; each WP status
 - Non-blocking tier: `julia --project=test test/nonblocking/runtests.jl`.
 - AMD tier (needs AMD hardware): `julia --project=test test/amdgpu/runtests.jl`.
 - Docs: `julia --project=docs docs/make.jl`.
-- Benchmarks (full sweep about 4 min): `julia --project=benchmark -t auto benchmark/run.jl [--key=list ...]` writes `benchmark/results/<hostname>.toml`; `benchmark/predict.jl --N=... --model=... --device=... --T=... --t_end=... --dt=...` predicts a run (see `docs/src/tests_and_gpu.md`).
+- Benchmarks (full sweep about 4 min): `julia --project=benchmark -t auto benchmark/run.jl [--key=list ...]` writes `benchmark/results/<machine>.toml`; `benchmark/predict.jl --N=... --model=... --device=... --T=... --t_end=... --dt=...` predicts a run (see `docs/src/tests_and_gpu.md`).
 - A new file in `src/` needs an `@autodocs` line in one of `docs/src/api/*.md`; otherwise the docs check `checkdocs = :all` fails.
 
 ## Workflow for a work package

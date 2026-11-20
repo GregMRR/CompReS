@@ -8,7 +8,8 @@
 #   --schemes  Euler, RK2, SSPRK3, RK4 [RK4]
 #   --ifs      integrating factor, true or false [true]
 #   --N        grid sizes [256,512,1024,2048,4096]
-#   --out      result file [benchmark/results/<hostname>.toml]
+#   --machine  machine label [$COMPRES_MACHINE, else the hostname]
+#   --out      result file [benchmark/results/<machine>.toml]
 # The run adds its configurations to the result file and keeps the other configurations in it.
 using CompReS, CUDA, KernelAbstractions, TOML
 using Dates: now
@@ -87,12 +88,13 @@ mktempname() = joinpath(tempdir(), "compres_benchmark_unused")
 function parse_arguments(args)
     options = Dict("targets" => "cpu:Float64,cuda:Float64,cuda:Float32", "models" => "incompressible,compressible",
                    "schemes" => "RK4", "ifs" => "true", "N" => "256,512,1024,2048,4096",
-                   "out" => joinpath(@__DIR__, "results", gethostname() * ".toml"))
+                   "machine" => get(ENV, "COMPRES_MACHINE", gethostname()), "out" => "")
     for arg in args
         m = match(r"^--(\w+)=(.*)$", arg)
         (m !== nothing && haskey(options, m[1])) || error("unknown argument $arg; keys: $(join(keys(options), ", "))")
         options[m[1]] = m[2]
     end
+    isempty(options["out"]) && (options["out"] = joinpath(@__DIR__, "results", options["machine"] * ".toml"))
     return options
 end
 
@@ -104,7 +106,7 @@ function main(args)
     ifs = parse.(Bool, split_list("ifs"))
     Ns = parse.(Int, split_list("N"))
     results = isfile(options["out"]) ? TOML.parsefile(options["out"]) : Dict{String,Any}()
-    results["meta"] = Dict("hostname" => gethostname(), "date" => string(now()), "julia" => string(VERSION),
+    results["meta"] = Dict("machine" => options["machine"], "date" => string(now()), "julia" => string(VERSION),
                            "threads" => Threads.nthreads(), "cpu" => Sys.cpu_info()[1].model,
                            "gpu" => CUDA.functional() ? CUDA.name(CUDA.device()) : "none",
                            "gpu_memory_bytes" => CUDA.functional() ? Int(CUDA.total_memory()) : 0,
