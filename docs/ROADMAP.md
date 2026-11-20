@@ -203,7 +203,7 @@ Status: in review d4fbf9d: awaits the user's ν decision (ADR-0029) and the acce
 - Accept (user): the user records pass in `RESULTS.md`.
 
 ### WP-16 Benchmark suite
-Status: todo. ← WP-13. ADRs: 0010.
+Status: in review 6c924a1: 2 of 6 configurations miss the 10% fit residual; awaits the user's decision. ← WP-13. ADRs: 0010, 0030.
 - `benchmark/run.jl`: time per step and memory over `N` and `(model, scheme, device, T)`; fit `t_step = a·N² log N + b·N² + c` (the constant `c` absorbs kernel-launch latency on GPU); `benchmark/predict.jl` for a target run; TOML output.
 - Accept (benchmark): fit residual under 10% on this machine for `N = 256 … 4096`, CPU and CUDA.
 
