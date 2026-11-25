@@ -47,6 +47,18 @@ restart!(sim, "runs/example/fields/snap_000010.nc")
 run!(sim; t_end = 20.0)
 ```
 
+To continue a run on another grid size of the same box, for example to refine a steady state reached on a coarse grid, build the `Simulation` on the new grid with a new `outdir` and pass `upscale = true`:
+
+```julia
+fine = Grid(; Lx = 2π, Ly = 2π, Nx = 1024, Ny = 1024, T = Float64, backend)
+sim = Simulation(fine, model; forcing = OUForcing(fine, band(4, 6); ε = 1.0, τ_f = 0.05, seed = 1),
+                 Δt = 5e-5, outputs, outdir = "runs/example_1024")
+restart!(sim, "runs/example/fields/snap_000010.nc"; upscale = true)
+run!(sim; t_end = 30.0)
+```
+
+Upscaling copies the Fourier modes of the snapshot to the new grid and sets the new modes to zero; a coarser grid truncates them. The time, the step and the snapshot numbering continue. The new `Simulation` sets the parameters, for example a smaller viscosity; the output files record them, plus the source snapshot under `upscaled_from`. A different forcing seed, type or number of forced modes gives a warning, not an error. The `outdir` must not hold output of another grid size.
+
 The script was run at `N = 32` with `t_end = 0.2`, followed by a restart from `snap_000000.nc` and `run!(sim; t_end = 0.3)`.
 It needs no change from the target script.
 
@@ -102,6 +114,6 @@ Every `n_check = 10` steps the driver checks that the state is finite, that the 
 
 - `random_velocity(grid; spectrum, E_kin, seed)`: a random solenoidal velocity field with the given spectrum and kinetic energy. Other initial conditions are `kolmogorov`, `crossed_kolmogorov` and `uniform_density`. The initial density is uniform, `ρ = 1`, unless the initial condition sets `rho`.
 - `run!(sim; t_end)` integrates to the step nearest to `t_end`.
-- `restart!(sim, path)` loads the state, the time and the forcing state from a snapshot. The next `run!` continues the run in the same directory.
+- `restart!(sim, path)` loads the state, the time and the forcing state from a snapshot. The next `run!` continues the run in the same directory. With `upscale = true` the snapshot may come from another grid size of the same box.
 
 The run directory holds the files described in [Output format](output.md), and the runtime log `run.log`.

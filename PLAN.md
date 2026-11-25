@@ -27,10 +27,10 @@ Items without a specification. Each names the cost or defect, the proposed chang
 - Change: specify with the user (increments, structure functions, increment PDFs, their dependence on the Mach number), then implement an offline module on FIELDS snapshots. Plotting stays in `ext/` (ADR-0012).
 - Source: the user postponed it (WP-18 of the build roadmap) on 2026-11-20.
 
-### Change the resolution of a snapshot by Fourier padding
-- Cost: a steady state at high resolution takes a long transient on the fine grid.
-- Change: add a routine that reads a FIELDS snapshot at one resolution and writes it at another one by Fourier padding (Fourier interpolation): copy the spectral modes to the new grid, fill the new modes with zero and keep the Hermitian symmetry (`enforce_hermitian!`). Refine a steady state from a coarse grid, then continue the run on the fine grid with `restart!`. Coarsening truncates to the new disc.
-- Source: the user, 2026-11-25.
+### Store the forced wavevectors in the snapshot
+- Defect: an upscaling restart cannot detect a forcing support with the same type and mode count but other wavevectors; the saved forcing state then loads onto other modes without a warning (ADR-0031).
+- Change: write the wavevectors of the stored forced modes to the snapshot; compare them on an upscaling restart. This changes the snapshot layout of ADR-0024.
+- Source: design of the upscaling restart, 2026-11-25.
 
 ### Fuse the stage combinations of `step!`
 - Cost: one RK4 step with IF at N = 2048, Float64, takes 260 ms on CPU and 33 ms on CUDA; the four `rhs!` calls take 176 ms and 27 ms of it. The rest comes from 13 separate add and propagate passes, the two host-synchronising reductions of `record_injection!` and the host-to-device copy of the OU noise.
@@ -129,3 +129,4 @@ Format: `N. Title — commit or date — ADRs — plan file (if any)`. Items 0 t
 15. Visualisation extensions and acceptance animation — d4fbf9d, user pass 2026-11-25 — ADR-0011, 0012, 0029
 16. Benchmark suite — 6c924a1 — ADR-0010, 0030
 17. Documentation site — 97f8085 — ADR-0012, 0028
+18. Upscaling restart — 2026-11-25 — ADR-0031 — `design/plans/upscaling.md`

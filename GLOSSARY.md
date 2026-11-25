@@ -141,6 +141,10 @@ _Avoid_: dump, checkpoint
 **Snapshot index**:
 The running number of FIELDS samples of a run, 0 at the start time. It names the file `snap_NNNNNN.nc`; it is not the step number.
 
+**Upscaling**:
+A restart on another grid size of the same box: the solver pads the snapshot spectrum with zero modes (Fourier padding) or truncates it to the Galerkin truncation of the new grid. It covers refinement and coarsening.
+_Avoid_: regridding, interpolation, resampling
+
 **Run segment**:
 One call of `run!`: from the current state to `t_end` or an earlier stop. A run made of several segments (restarts, or several `run!` calls) has one history in its output directory.
 _Avoid_: job, chunk

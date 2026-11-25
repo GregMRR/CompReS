@@ -252,7 +252,7 @@ function write_snapshot(dir, index::Integer, state, problem, workspace; run::Nam
 end
 
 """
-    read_snapshot!(state, problem, workspace, path) -> state
+    read_snapshot!(state, problem, workspace, path; upscale = false) -> state
 
 Restore `state` and the forcing state of `problem.forcing` from the snapshot `path` of [`write_snapshot`](@ref).
 The function transforms the physical fields to spectral space and truncates them to the Galerkin truncation,
@@ -261,28 +261,89 @@ to `‖û_restart − û‖₂/‖û‖₂ ≤ 10·eps(T)` (ADR-0014, ADR-0015);
 the forcing sequence continues exactly (ADR-0007). `problem` must have the grid size, the fields and the
 forcing type (and seed) of the run that wrote the file. The function overwrites `workspace.physical`, and
 throws an `ArgumentError` otherwise.
+
+**Upscaling** (`upscale = true`, ADR-0031). The snapshot may come from another grid size of the same box
+(`Lx`, `Ly`) and another float type. The function copies each Fourier mode
+``\\hat f(\\mathbf{k}) = \\langle f\\, e^{-i\\mathbf{k}\\cdot\\mathbf{x}} \\rangle`` of the snapshot to the same
+wavevector of `problem.grid`, sets every other mode to zero (Fourier padding), and applies [`truncate!`](@ref)
+and [`enforce_hermitian!`](@ref). A refinement keeps every mode; a coarsening removes the modes outside the
+new Galerkin truncation. The forcing rules change:
+
+- another seed: a warning; the function restores the forcing state, and the run continues with the new seed;
+- another forcing type or another number of forced modes: a warning; the forcing keeps its current state.
+
+A support of the same type and mode count but with other wavevectors is not detected, because the
+snapshot stores no wavevectors. The function throws an `ArgumentError` for another box or a missing field.
 """
-function read_snapshot!(state, problem, workspace, path)
+function read_snapshot!(state, problem, workspace, path; upscale::Bool = false)
     grid, forcing = problem.grid, problem.forcing
     NCDataset(path) do ds
-        saved = (Nx = ds.attrib["grid_Nx"], Ny = ds.attrib["grid_Ny"], forcing = ds.attrib["forcing_type"])
-        saved == (Nx = grid.Nx, Ny = grid.Ny, forcing = string(nameof(typeof(forcing)))) ||
-            throw(ArgumentError("the snapshot $path was written for another grid size or forcing type: $saved"))
-        hasproperty(forcing, :seed) && ds.attrib["forcing_seed"] != forcing.seed &&
-            throw(ArgumentError("the snapshot $path has the forcing seed $(ds.attrib["forcing_seed"]), the forcing $(forcing.seed)"))
+        if !upscale
+            saved = (Nx = ds.attrib["grid_Nx"], Ny = ds.attrib["grid_Ny"], forcing = ds.attrib["forcing_type"])
+            saved == (Nx = grid.Nx, Ny = grid.Ny, forcing = string(nameof(typeof(forcing)))) ||
+                throw(ArgumentError("the snapshot $path was written for another grid size or forcing type: $saved"))
+            hasproperty(forcing, :seed) && ds.attrib["forcing_seed"] != forcing.seed &&
+                throw(ArgumentError("the snapshot $path has the forcing seed $(ds.attrib["forcing_seed"]), the forcing $(forcing.seed)"))
+        else
+            box = (Lx = Float64(ds.attrib["grid_Lx"]), Ly = Float64(ds.attrib["grid_Ly"]))
+            isapprox(box.Lx, grid.Lx; rtol = 1e-6) && isapprox(box.Ly, grid.Ly; rtol = 1e-6) ||
+                throw(ArgumentError("the snapshot $path has the box $box; upscaling keeps the box ($(grid.Lx), $(grid.Ly))"))
+        end
         all(name -> haskey(ds, String(name)), keys(state.fields)) ||
             throw(ArgumentError("the snapshot $path lacks a field of $(keys(state.fields))"))
         for name in keys(state.fields)
-            copyto!(workspace.physical[name], Array(ds[String(name)][:, :]))
             f̂ = state.fields[name]
-            to_spectral!(f̂, workspace.physical[name], workspace.transforms)
-            truncate!(f̂, grid)
+            if upscale
+                copyto!(f̂, padded_spectrum(Array(ds[String(name)][:, :]), grid))
+                truncate!(f̂, grid)
+                enforce_hermitian!(f̂, grid)
+            else
+                copyto!(workspace.physical[name], Array(ds[String(name)][:, :]))
+                to_spectral!(f̂, workspace.physical[name], workspace.transforms)
+                truncate!(f̂, grid)
+            end
         end
         state.t = ds["t"][]
         state.n = ds["n"][]
-        template = forcing_state(forcing)
-        set_forcing_state!(forcing, NamedTuple{keys(template)}(map((k, v) -> read_forcing_value(ds, "forcing_$k", v),
-                                                                  keys(template), values(template))))
+        upscale ? restore_forcing_upscaled!(forcing, ds, path) : set_forcing_state!(forcing, read_forcing_state(ds, forcing))
     end
     return state
+end
+
+# The forcing state that the snapshot ds holds for the entries of forcing_state(forcing).
+function read_forcing_state(ds, forcing)
+    template = forcing_state(forcing)
+    return NamedTuple{keys(template)}(map((k, v) -> read_forcing_value(ds, "forcing_$k", v), keys(template), values(template)))
+end
+
+# Forcing state after an upscaling read (ADR-0031): restored when the type and the number of forced modes
+# match, with a warning for another seed; otherwise a warning, and the forcing keeps its state.
+function restore_forcing_upscaled!(forcing, ds, path)
+    saved_type, type = ds.attrib["forcing_type"], string(nameof(typeof(forcing)))
+    if saved_type != type
+        @warn "the snapshot $path has the forcing type $saved_type, the run $type; the forcing keeps its initial state"
+        return forcing
+    end
+    hasproperty(forcing, :seed) && ds.attrib["forcing_seed"] != forcing.seed &&
+        @warn "the snapshot $path has the forcing seed $(ds.attrib["forcing_seed"]), the run $(forcing.seed); " *
+              "the forcing state is restored and the run continues with the new seed"
+    saved = read_forcing_state(ds, forcing)
+    if map(length, saved) != map(length, forcing_state(forcing))
+        @warn "the snapshot $path has another number of forced modes than the run; the forcing keeps its initial state"
+        return forcing
+    end
+    return set_forcing_state!(forcing, saved)
+end
+
+# Host spectral field on `grid` of the physical field f of another grid size of the same box: the modes of
+# f that both grids store, without the Nyquist column and row of either grid; zero elsewhere (Fourier padding).
+function padded_spectrum(f::AbstractMatrix, grid::Grid{T}) where {T}
+    Mx, My = size(f)
+    source = FFTW.rfft(T.(f)) ./ T(Mx * My)
+    f̂ = zeros(Complex{T}, grid.Nx ÷ 2 + 1, grid.Ny)
+    i_max, j_max = min(Mx, grid.Nx) ÷ 2 - 1, min(My, grid.Ny) ÷ 2 - 1
+    for j in -j_max:j_max, i in 0:i_max
+        f̂[i + 1, mod(j, grid.Ny) + 1] = source[i + 1, mod(j, My) + 1]
+    end
+    return f̂
 end

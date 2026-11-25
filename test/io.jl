@@ -183,7 +183,115 @@ function run_tests(backend)
                 @test CompReS.forcing_state(problem_b.forcing).z ≈ CompReS.forcing_state(problem.forcing).z rtol = 100 * eps(T)
             end
         end
+
+        @testset "upscaling: one Fourier mode, 8 → 16: $T" for T in (Float64, Float32)
+            # The solenoidal mode k = (1, 2) and the kx = 0 pair (0, ±1); |k| < k_c = 8/3 on N = 8.
+            mode_fields(N) = (ux = spectral_modes(N, T, [(1, 2) => Complex{T}(0.3, 0.1), (0, 1) => Complex{T}(0.2, -0.4)]),
+                              uy = spectral_modes(N, T, [(1, 2) => Complex{T}(-0.15, -0.05)]))
+            g8, problem8, state8, ws8 = unforced_setup(backend, T, 8, mode_fields(8))
+            g16, problem16, state16, ws16 = unforced_setup(backend, T, 16, nothing)
+            mktempdir() do dir
+                path = write_snapshot(dir, 0, state8, problem8, ws8)
+                read_snapshot!(state16, problem16, ws16, path; upscale = true)
+                for name in (:ux, :uy)
+                    expected = mode_fields(16)[name]
+                    @test maximum(abs, Array(state16.fields[name]) .- expected) <= 10 * eps(T) * maximum(abs, expected)
+                end
+            end
+        end
+
+        @testset "upscaling: round trip 16 → 32 → 16 and invariants: $(compressible ? "compressible" : "incompressible"), $T" for T in (Float64, Float32),
+                                                                                                                           compressible in (false, true)
+            _, problem16, state16, ws16 = setup(backend, T; compressible)
+            if compressible
+                # A nonuniform density with the mean 1.
+                rho = Array(state16.fields.rho)
+                rho[2, 3] = Complex{T}(0.01, 0.02)
+                copyto!(state16.fields.rho, rho)
+                enforce_hermitian!(state16.fields.rho, problem16.grid)
+            end
+            _, problem32, state32, ws32 = setup(backend, T; compressible, N = 32)
+            _, problem_back, state_back, ws_back = setup(backend, T; compressible)
+            mktempdir() do dir
+                path16 = write_snapshot(dir, 4, state16, problem16, ws16)
+                @test_logs min_level = Base.CoreLogging.Warn read_snapshot!(state32, problem32, ws32, path16; upscale = true)
+                @test CompReS.kinetic_energy(state32, problem32, ws32) ≈ CompReS.kinetic_energy(state16, problem16, ws16) rtol = 10 * eps(T)
+                compressible && @test Array(state32.fields.rho)[1, 1] ≈ 1 rtol = 10 * eps(T)
+                path32 = write_snapshot(mkpath(joinpath(dir, "fine")), 5, state32, problem32, ws32)
+                read_snapshot!(state_back, problem_back, ws_back, path32; upscale = true)
+                @test state_error(state_back, state16) <= 10 * eps(T)
+                @test state_back.t == state16.t && state_back.n == state16.n
+            end
+        end
+
+        @testset "upscaling: coarsening 32 → 16 truncates to the new disc" begin
+            T = Float64
+            # |(1, 1)| < k_c = 16/3 on N = 16; |(6, 0)| lies outside it and inside k_c = 32/3 on N = 32.
+            fine = (ux = spectral_modes(32, T, [(1, 1) => 0.5 + 0.2im, (6, 0) => 0.1 + 0.0im]),
+                    uy = spectral_modes(32, T, [(1, 1) => -0.5 - 0.2im]))
+            _, problem32, state32, ws32 = unforced_setup(backend, T, 32, fine)
+            _, problem16, state16, ws16 = unforced_setup(backend, T, 16, nothing)
+            mktempdir() do dir
+                path = write_snapshot(dir, 0, state32, problem32, ws32)
+                read_snapshot!(state16, problem16, ws16, path; upscale = true)
+                @test maximum(abs, Array(state16.fields.ux) .- spectral_modes(16, T, [(1, 1) => 0.5 + 0.2im])) <= 10 * eps(T)
+                @test maximum(abs, Array(state16.fields.uy) .- spectral_modes(16, T, [(1, 1) => -0.5 - 0.2im])) <= 10 * eps(T)
+            end
+        end
+
+        @testset "upscaling: guards and forcing mismatch" begin
+            T = Float64
+            g, problem, state, ws = setup(backend, T)
+            mktempdir() do dir
+                path = write_snapshot(dir, 0, state, problem, ws)
+                saved_z = CompReS.forcing_state(problem.forcing).z
+                # Without upscale, another grid size still throws.
+                _, p32, s32, w32 = setup(backend, T; N = 32)
+                @test_throws ArgumentError read_snapshot!(s32, p32, w32, path)
+                # Another box throws even with upscale.
+                big = Grid(; Lx = 4π, Ly = 4π, Nx = 32, Ny = 32, T, backend)
+                sb = State(random_velocity(big; spectrum = SPECTRUM, E_kin = 0.5, seed = 2))
+                pb = Problem(big, Incompressible(; ν = 0.01), NoForcing())
+                @test_throws ArgumentError read_snapshot!(sb, pb, Workspace(big, sb), path; upscale = true)
+                # Another seed: a warning, and the forcing state is restored.
+                g32 = p32.grid
+                p_seed = Problem(g32, p32.model, OUForcing(g32, band(2, 4); ε = 1.0, τ_f = 0.2, seed = 4))
+                @test_logs (:warn, r"seed") read_snapshot!(s32, p_seed, w32, path; upscale = true)
+                @test CompReS.forcing_state(p_seed.forcing).z == saved_z
+                # Another forcing type: a warning, and the forcing keeps its initial state.
+                p_type = Problem(g32, p32.model, RandomPhaseForcing(g32, band(2, 4); f_rms = 1.0, τ_r = 0.1, seed = 3))
+                initial = CompReS.forcing_state(p_type.forcing)
+                @test_logs (:warn, r"forcing type") read_snapshot!(s32, p_type, w32, path; upscale = true)
+                @test CompReS.forcing_state(p_type.forcing) == initial
+                # Another forced mode count: a warning, and the forcing keeps its initial state.
+                p_band = Problem(g32, p32.model, OUForcing(g32, band(2, 6); ε = 1.0, τ_f = 0.2, seed = 3))
+                initial = CompReS.forcing_state(p_band.forcing)
+                @test_logs (:warn, r"forced modes") read_snapshot!(s32, p_band, w32, path; upscale = true)
+                @test CompReS.forcing_state(p_band.forcing) == initial
+            end
+        end
     end
+end
+
+# Host spectral field of an N × N grid with the given modes (i, j) => value, i ≥ 0, signed j. A kx = 0 mode
+# also sets its conjugate (0, −j).
+function spectral_modes(N, T, values)
+    f̂ = zeros(Complex{T}, N ÷ 2 + 1, N)
+    row(j) = mod(j, N) + 1
+    for ((i, j), v) in values
+        f̂[i + 1, row(j)] = v
+        i == 0 && (f̂[1, row(-j)] = conj(v))
+    end
+    return f̂
+end
+
+# Grid of side 2π, unforced incompressible problem, state and workspace; `fields` holds host spectral ux and
+# uy, or is nothing for a state at rest.
+function unforced_setup(backend, T, N, fields)
+    g = Grid(; Lx = 2π, Ly = 2π, Nx = N, Ny = N, T, backend)
+    host = isnothing(fields) ? (ux = spectral_modes(N, T, []), uy = spectral_modes(N, T, [])) : fields
+    state = State(map(f -> CompReS.to_device(backend, f), host))
+    return g, Problem(g, Incompressible(; ν = 0.01), NoForcing()), state, Workspace(g, state)
 end
 
 # Number of stored forced modes of a mode forcing.

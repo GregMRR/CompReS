@@ -62,6 +62,7 @@ mutable struct Simulation{T<:AbstractFloat,G<:Grid,P<:Problem,S<:State,W<:Worksp
     next_snapshot::Int
     snapshot_step::Int
     log_position::Int
+    upscaled_from::Union{Nothing,NamedTuple}
 end
 
 # Spectral fields of the state at rest: zero velocity and, compressible model only, ρ = 1.
@@ -110,7 +111,7 @@ function Simulation(grid::Grid{T}, model; forcing = NoForcing(), scheme::RungeKu
     classes = filter(class -> haskey(outputs, class), (:GLOBAL, :SPECTRAL))
     diagnostics = NamedTuple{classes}(map(class -> selected_diagnostics(outputs[class], class, problem.model), classes))
     return Simulation(grid, problem, state, ws, T(Δt), outputs, diagnostics, String(outdir), Float64(max_walltime),
-                      Int(n_check), T(C_stop), profile, overwrite, timer, T(NaN), true, 0, -1, 0)
+                      Int(n_check), T(C_stop), profile, overwrite, timer, T(NaN), true, 0, -1, 0, nothing)
 end
 
 """
@@ -139,23 +140,52 @@ function set_initial_condition!(sim::Simulation, fields::NamedTuple)
     sim.state.n = 0
     sim.new_run = true
     sim.next_snapshot = 0
+    sim.upscaled_from = nothing
     return sim
 end
 
 """
-    restart!(sim::Simulation, path) -> sim
+    restart!(sim::Simulation, path; upscale = false) -> sim
 
 Restore the state of `sim` and the state of its forcing from the snapshot `path` ([`read_snapshot!`](@ref));
 [`run!`](@ref) then continues that run in `sim.outdir`. `sim` must be set up as the run that wrote the
 snapshot (same grid size, model fields, forcing type and seed); `Δt` and the other driver settings may
 differ. The snapshot numbering continues after the index of `path`. The function throws an
 `ArgumentError` for a snapshot of another run.
+
+**Upscaling** (`upscale = true`, ADR-0031). The snapshot may come from another grid size of the same box: the
+fields are padded with zero modes or truncated to the grid of `sim`, and another forcing seed, type or
+number of forced modes gives a warning instead of an error (see [`read_snapshot!`](@ref)). The model,
+forcing and driver parameters are those of `sim`. The time, the step and the snapshot numbering continue
+from the snapshot. The run parameters of every output file get `upscaled_from` (the absolute path of the
+snapshot), `upscaled_from_Nx` and `upscaled_from_Ny`; a later restart from a snapshot of the upscaled run
+keeps them. The function throws an `ArgumentError` when `sim.outdir` holds a NetCDF file of another grid
+size.
 """
-function restart!(sim::Simulation, path)
-    read_snapshot!(sim.state, sim.problem, sim.workspace, path)
-    sim.next_snapshot = NCDataset(ds -> Int(ds.attrib["snapshot_index"]) + 1, path)
+function restart!(sim::Simulation, path; upscale::Bool = false)
+    upscale && check_outdir_grid(sim)
+    read_snapshot!(sim.state, sim.problem, sim.workspace, path; upscale)
+    NCDataset(path) do ds
+        sim.next_snapshot = Int(ds.attrib["snapshot_index"]) + 1
+        sim.upscaled_from = upscale ?
+            (upscaled_from = abspath(path), upscaled_from_Nx = Int(ds.attrib["grid_Nx"]),
+             upscaled_from_Ny = Int(ds.attrib["grid_Ny"])) :
+            haskey(ds.attrib, "run_upscaled_from") ?
+            (upscaled_from = String(ds.attrib["run_upscaled_from"]), upscaled_from_Nx = Int(ds.attrib["run_upscaled_from_Nx"]),
+             upscaled_from_Ny = Int(ds.attrib["run_upscaled_from_Ny"])) : nothing
+    end
     sim.new_run = false
     return sim
+end
+
+# Reject an upscaling restart into an outdir that holds NetCDF output of another grid size (ADR-0031).
+function check_outdir_grid(sim::Simulation)
+    for file in filter(endswith(".nc"), run_files(sim))
+        saved = NCDataset(ds -> (Nx = Int(ds.attrib["grid_Nx"]), Ny = Int(ds.attrib["grid_Ny"])), file)
+        saved == (Nx = sim.grid.Nx, Ny = sim.grid.Ny) ||
+            throw(ArgumentError("$file holds output of the grid $saved; upscaling needs an outdir without output of another grid"))
+    end
+    return nothing
 end
 
 """
@@ -205,12 +235,14 @@ end
 
 (d::TimedDiagnostic)(state, problem, ws) = @timeit d.timer d.label d.diagnostic(state, problem, ws)
 
-# The driver settings written to params.toml and to the attributes of every file (ADR-0024).
+# The driver settings written to params.toml and to the attributes of every file (ADR-0024), with the source
+# of an upscaling restart (ADR-0031).
 run_parameters(sim::Simulation) =
     (; scheme = string(nameof(typeof(sim.workspace.stepper.scheme))),
      integrating_factor = sim.workspace.stepper.integrating_factor, Δt = sim.Δt, n_check = sim.n_check,
      C_stop = sim.C_stop, max_walltime = sim.max_walltime, profile = sim.profile,
-     (Symbol(class, "_period") => output.period for (class, output) in pairs(sim.outputs))...)
+     (Symbol(class, "_period") => output.period for (class, output) in pairs(sim.outputs))...,
+     something(sim.upscaled_from, (;))...)
 
 fields_dir(sim) = joinpath(sim.outdir, "fields")
 log_path(sim) = joinpath(sim.outdir, "run.log")

@@ -237,6 +237,45 @@ function run_tests(backend)
             end
         end
 
+        @testset "upscaling restart: $(compressible ? "compressible" : "incompressible")" for compressible in (false, true)
+            T, n, Δt = Float64, 4, 0.005
+            outputs = (GLOBAL = Output(period = Δt), SPECTRAL = Output(period = 2Δt), FIELDS = Output(period = n * Δt))
+            mktempdir() do dir
+                coarse_dir, fine_dir = joinpath(dir, "coarse"), joinpath(dir, "fine")
+                coarse = forced_simulation(backend, T, coarse_dir; compressible, Δt, outputs)
+                run!(coarse; t_end = n * Δt)
+                source = joinpath(coarse_dir, "fields", "snap_000001.nc")
+                fine_simulation(outdir) = forced_simulation(backend, T, outdir; compressible, N = 32, Δt, outputs)
+                # The source outdir holds output of another grid size.
+                @test_throws ArgumentError restart!(fine_simulation(coarse_dir), source; upscale = true)
+                # Without upscale, another grid size throws.
+                @test_throws ArgumentError restart!(fine_simulation(fine_dir), source)
+                fine = restart!(fine_simulation(fine_dir), source; upscale = true)
+                @test fine.state.n == n && fine.state.t ≈ n * Δt
+                run!(fine; t_end = 2n * Δt)
+                @test fine.state.n == 2n
+                @test all(f -> all(isfinite, Array(f)), fine.state.fields)
+                @test snapshots(fine_dir) == ["snap_000002.nc", "snap_000003.nc"]
+                for file in ("global.nc", "spectral.nc", joinpath("fields", "snap_000003.nc"))
+                    NCDataset(joinpath(fine_dir, file)) do ds
+                        @test ds.attrib["run_upscaled_from"] == source
+                        @test ds.attrib["run_upscaled_from_Nx"] == 16 && ds.attrib["run_upscaled_from_Ny"] == 16
+                        @test ds.attrib["grid_Nx"] == 32
+                    end
+                end
+                @test TOML.parsefile(joinpath(fine_dir, "params.toml"))["run"]["upscaled_from"] == source
+                # A plain restart of the fine run keeps the provenance.
+                resumed = restart!(fine_simulation(fine_dir), joinpath(fine_dir, "fields", "snap_000003.nc"))
+                run!(resumed; t_end = 3n * Δt)
+                params = TOML.parsefile(joinpath(fine_dir, "params.toml"))["run"]
+                @test params["upscaled_from"] == source && params["upscaled_from_Nx"] == 16
+                # A new run clears it.
+                fresh = fine_simulation(joinpath(dir, "fresh"))
+                run!(fresh; t_end = Δt)
+                @test !haskey(TOML.parsefile(joinpath(dir, "fresh", "params.toml"))["run"], "upscaled_from")
+            end
+        end
+
         @testset "target user script, tiny: $(compressible ? "compressible" : "incompressible")" for compressible in (false, true)
             mktempdir() do dir
                 sim = target_script(backend, dir; compressible)
