@@ -27,6 +27,11 @@ Items without a specification. Each names the cost or defect, the proposed chang
 - Change: specify with the user (increments, structure functions, increment PDFs, their dependence on the Mach number), then implement an offline module on FIELDS snapshots. Plotting stays in `ext/` (ADR-0012).
 - Source: the user postponed it (WP-18 of the build roadmap) on 2026-11-20.
 
+### Change the resolution of a snapshot by Fourier padding
+- Cost: a steady state at high resolution takes a long transient on the fine grid.
+- Change: add a routine that reads a FIELDS snapshot at one resolution and writes it at another one by Fourier padding (Fourier interpolation): copy the spectral modes to the new grid, fill the new modes with zero and keep the Hermitian symmetry (`enforce_hermitian!`). Refine a steady state from a coarse grid, then continue the run on the fine grid with `restart!`. Coarsening truncates to the new disc.
+- Source: the user, 2026-11-25.
+
 ### Fuse the stage combinations of `step!`
 - Cost: one RK4 step with IF at N = 2048, Float64, takes 260 ms on CPU and 33 ms on CUDA; the four `rhs!` calls take 176 ms and 27 ms of it. The rest comes from 13 separate add and propagate passes, the two host-synchronising reductions of `record_injection!` and the host-to-device copy of the OU noise.
 - Change: fuse each add-and-propagate sequence into one kernel that reads the linear rates; generate the OU noise on the device.
