@@ -21,7 +21,7 @@ There is no input-file format.
 
 - The binding equations are in the specification: [`ns2d_equations.pdf`](ns2d_equations.pdf) (source: [`ns2d_equations.tex`](https://github.com/GregMRR/CompReS/blob/main/docs/ns2d_equations.tex)).
 - The project vocabulary is in [`GLOSSARY.md`](https://github.com/GregMRR/CompReS/blob/main/GLOSSARY.md).
-- The work packages are in [`docs/ROADMAP.md`](https://github.com/GregMRR/CompReS/blob/main/docs/ROADMAP.md).
+- The work plan (open items, ideas and implemented items) is in [`PLAN.md`](https://github.com/GregMRR/CompReS/blob/main/PLAN.md).
 
 ```@docs
 CompReS

@@ -2,7 +2,7 @@
 
 Date: 2026-11-19. Status: accepted.
 
-An adversarial review of `docs/ROADMAP.md` (report: `reviews/docs/ROADMAP/r1.md`) found defects in the design. This ADR records the resulting changes; the amended ADRs point here.
+An adversarial review of `design/origin/ROADMAP-build.md` (report: `design/reviews/roadmap/r1.md`) found defects in the design. This ADR records the resulting changes; the amended ADRs point here.
 
 - **Restart tolerance (ADR-0009).** A snapshot stores physical-space fields, and the physical-to-spectral round trip changes the last bit of most modes. A restart therefore reproduces the saved state to relative `1e-14`, not bit for bit. The forcing sequence stays exact. The user chose this over storing the spectral state as well, which would double the snapshot size.
 - **Strict truncation (ADR-0003).** The disc `|k| ≤ N/3` aliases the self-triad at `|k| = N/3` when 3 divides `N`. The truncation is now `|k| < k_c`, `k_c = N/3` (units `2π/L`); `k_max` is the largest retained `|k|`.

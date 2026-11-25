@@ -4,7 +4,7 @@ Records the user-tier acceptance items. The user writes `pass` in the Result col
 
 | Work package | Item | Result | Date |
 |--------------|------|--------|------|
-| WP-15 | Crossed Kolmogorov animation, `test/acceptance/crossed_kolmogorov.mp4` (vorticity and `E_kin_inc(k)`, 121 frames, t = 0 to 30) | pending | |
+| WP-15 | Crossed Kolmogorov animation, `test/acceptance/crossed_kolmogorov.mp4` (vorticity and `E_kin_inc(k)`, 121 frames, t = 0 to 30) | pass | 2026-11-25 |
 
 ### WP-15: crossed Kolmogorov animation
 

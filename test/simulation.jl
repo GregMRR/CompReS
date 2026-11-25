@@ -28,7 +28,7 @@ state_error(a, b) = sqrt(sum(name -> sum(abs2, Array(a.fields[name]) .- Array(b.
 
 snapshots(outdir) = sort!(filter(startswith("snap_"), readdir(joinpath(outdir, "fields"))))
 
-# The target script of docs/ROADMAP.md at a tiny size: N = 32, Δt = 1e-3, t_end = 0.05, then a restart to 0.1.
+# The target script of design/origin/ROADMAP-build.md at a tiny size: N = 32, Δt = 1e-3, t_end = 0.05, then a restart to 0.1.
 function target_script(backend, outdir; compressible)
     grid    = Grid(; Lx = 2π, Ly = 2π, Nx = 32, Ny = 32, T = Float64, backend)
     model   = compressible ?

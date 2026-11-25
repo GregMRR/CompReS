@@ -4,7 +4,7 @@ Date: 2026-11-19. Status: accepted.
 
 One generic explicit Runge–Kutta driver reads a Butcher table. The tables are Euler, RK2 (Heun), SSP-RK3 and RK4. Each scheme runs with or without an integrating factor (IF) on the linear terms. The order of every scheme is tested with the IF on, on an equation with nonzero linear and nonlinear parts (amended by ADR-0014). The IF is a per-mode linear propagator `exp(LΔt)`; it is a scalar for diagonal operators and a small matrix per mode for the compressible Helmholtz split (ADR-0004).
 
-The time step `Δt` is fixed. The driver computes the CFL number (definition in `docs/ROADMAP.md`, WP-13) and stops the run when it exceeds `C_stop`, default 1 (ADR-0010). Euler and RK2 are unstable on undamped oscillating modes at any CFL number, so they serve tests only. A fixed `Δt` keeps stochastic forcing and reproducible restarts simple.
+The time step `Δt` is fixed. The driver computes the CFL number (definition in `design/origin/ROADMAP-build.md`, WP-13) and stops the run when it exceeds `C_stop`, default 1 (ADR-0010). Euler and RK2 are unstable on undamped oscillating modes at any CFL number, so they serve tests only. A fixed `Δt` keeps stochastic forcing and reproducible restarts simple.
 
 Stochastic forcing updates once per step (`update_forcing!`), before the RK stages, and stays constant inside the stages.
 

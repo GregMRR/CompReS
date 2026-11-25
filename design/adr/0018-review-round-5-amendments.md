@@ -2,7 +2,7 @@
 
 Date: 2026-11-19. Status: accepted.
 
-Review round 5 of `docs/ROADMAP.md` (report: `reviews/docs/ROADMAP/r5.md`) found that the compressible injection rates were tested only at `ρ = 1`. Changes:
+Review round 5 of `design/origin/ROADMAP-build.md` (report: `design/reviews/roadmap/r5.md`) found that the compressible injection rates were tested only at `ρ = 1`. Changes:
 
 - **`nonlinear = false` test switch on the model types.** It keeps only the linear terms and the forcing; in the compressible model `ρ` stays fixed. Forcing-only tests then check `inj = ΔE/Δt` exactly, also with nonuniform `ρ`.
 - **Injection tolerance scaled by `E_kin/Δt`.** The energy difference cancels, so a tolerance relative to `ΔE/Δt` fails correct code.

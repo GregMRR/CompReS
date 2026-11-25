@@ -1,5 +1,5 @@
 # Time of one CompReS kernel under the KernelAbstractions CPU() backend against a plain Threads.@threads loop
-# (BACKLOG item on the POCL backend, WP-16).
+# (the POCL backend check of ADR-0030, WP-16).
 #
 #   julia --project=benchmark -t auto benchmark/cpu_kernel.jl [N]
 #

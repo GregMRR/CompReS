@@ -8,7 +8,8 @@ isplot(x) = x isa Union{Function,Type} && nameof(x) in PLOT_NAMES
 notplot(x) = !isplot(x)
 
 const DOCS_DIR = @__DIR__
-const ADR_URL = "https://github.com/GregMRR/CompReS/blob/main/docs/adr"
+const ADR_URL = "https://github.com/GregMRR/CompReS/blob/main/design/adr"
+const ADR_DIR = joinpath(DOCS_DIR, "..", "design", "adr")
 
 # Copy the specification next to the pages, so the site links to it.
 for f in ("ns2d_equations.pdf",)
@@ -18,10 +19,10 @@ end
 # Markdown list of every ADR file with its title; new files appear without editing the page.
 function adr_index()
     io = IOBuffer()
-    for file in sort(readdir(joinpath(DOCS_DIR, "adr")))
+    for file in sort(readdir(ADR_DIR))
         m = match(r"^(\d{4})-.*\.md$", file)
         m === nothing && continue
-        lines = readlines(joinpath(DOCS_DIR, "adr", file))
+        lines = readlines(joinpath(ADR_DIR, file))
         i = findfirst(startswith("# "), lines)
         title = i === nothing ? file : strip(lines[i][3:end])
         println(io, "- ADR-", m[1], ": [", title, "](", ADR_URL, "/", file, ")")

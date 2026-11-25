@@ -1,15 +1,31 @@
-# Backlog: possible future implementations
+# Work plan
 
-This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Each entry names the cost or defect, the proposed change, and where it came from. When an entry becomes work, move it into a WP and delete it here.
+Rules (full version: `CLAUDE.md`, section "Work plan"):
+1. Before you implement a feature, find its item here. If there is none, add it under **Next**. A specification longer than about 10 lines goes to `design/plans/<slug>.md`.
+2. In the commit that completes the item, move it to **Done** with the next number. Put each new design decision in the next ADR, `design/adr/NNNN-slug.md`.
+3. Add each new idea under **Ideas**. Bug fixes and refactors change this file only when they change a design decision.
 
-## Analysis
+## Next
 
-### Intermittency analysis (WP-18)
+Items with a specification, ready to implement. Format:
+
+```
+### <Title>
+- Goal: <what the user gets>.
+- Read: ADR-NNNN, ... ; plan: `design/plans/<slug>.md` (if any).
+- Accept: <checks, each with its tier: blocking, non-blocking, user, benchmark, docs>.
+```
+
+(empty)
+
+## Ideas
+
+Items without a specification. Each names the cost or defect, the proposed change, and its source. An item moves to **Next** when the user specifies it.
+
+### Intermittency analysis
 - Defect: the solver has no analysis of the FIELDS snapshots, which is the purpose of the project.
-- Change: specify WP-18 in detail with the user (increments, structure functions, increment PDFs, their dependence on the Mach number), then implement it as an offline module.
-- Source: the user postponed WP-18 on 2026-11-20; `docs/ROADMAP.md`, WP-18.
-
-## Performance
+- Change: specify with the user (increments, structure functions, increment PDFs, their dependence on the Mach number), then implement an offline module on FIELDS snapshots. Plotting stays in `ext/` (ADR-0012).
+- Source: the user postponed it (WP-18 of the build roadmap) on 2026-11-20.
 
 ### Fuse the stage combinations of `step!`
 - Cost: one RK4 step with IF at N = 2048, Float64, takes 260 ms on CPU and 33 ms on CUDA; the four `rhs!` calls take 176 ms and 27 ms of it. The rest comes from 13 separate add and propagate passes, the two host-synchronising reductions of `record_injection!` and the host-to-device copy of the OU noise.
@@ -51,8 +67,6 @@ This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Ea
 - Change: pass the profile timer to `rhs!` and time each transform and kernel with `@profiled`.
 - Source: WP-13 report, `src/timestepping.jl`.
 
-## Robustness
-
 ### Seed the OU forcing through the public random API
 - Defect: `src/forcing.jl` calls the internal 4-word `Xoshiro` constructor. A Julia release can change it without notice.
 - Change: derive the per-step generator from `(seed, step)` through public API only. Keep the forcing sequence reproducible across a restart.
@@ -62,8 +76,6 @@ This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Ea
 - Defect: for `Polytropic`, `balanced_density` needs `h + h₀ > 0` at every grid point. At a high Mach number the root find evaluates a negative enthalpy: `density_from_enthalpy` raises a `DomainError` on CPU and gives NaN on GPU.
 - Change: check `minimum(h) + h₀ > 0` (and the lower bracket end) and throw an `ArgumentError` that names the Mach number limit.
 - Source: WP-14 report.
-
-## Output
 
 ### Write snapshots atomically
 - Defect: `write_snapshot` writes straight to `snap_NNNNNN.nc`. A kill during the write leaves a partial file that a restart can pick up.
@@ -80,8 +92,6 @@ This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Ea
 - Change: copy the records in chunks of time, or truncate the unlimited dimension in place.
 - Source: WP-13 report, `src/simulation.jl` (`kept_records`).
 
-## Plotting
-
 ### Plot the fluxes
 - Defect: `plot_spectrum` rejects the SPECTRAL variables with the coordinate `shell_edge` (`Pi_kin`, `Pi_Z`, `Pi_Omega`), because they take both signs and do not fit log–log axes.
 - Change: add `plot_flux(path; names, time)` with a logarithmic `k` axis and a linear value axis, and an optional flux panel in `animate_snapshots`.
@@ -91,3 +101,26 @@ This file lists changes that no work package in `docs/ROADMAP.md` covers yet. Ea
 - Cost: `animate_snapshots` reads every snapshot twice (once for the shared colour range, once for the frame), and `field = :omega` builds FFT plans and computes the vorticity on the CPU per snapshot. At N = 512 this is under 1 s per snapshot; at N = 8192 the reads and FFTs dominate.
 - Change: store the field extrema in the snapshot attributes, or build the `Transforms` once per call.
 - Source: WP-15 report, `src/plotting.jl`.
+
+## Done
+
+Format: `N. Title — commit or date — ADRs — plan file (if any)`. Items 0 to 17 are the work packages of the build roadmap, `design/origin/ROADMAP-build.md`; its reviews are in `design/reviews/roadmap/`.
+
+0. Package skeleton and test harness — a7daa08 — ADR-0001, 0011, 0012
+1. Grid — 2a68a48 — ADR-0003, 0006
+2. Transforms and spectral operators — 7b469ea — ADR-0001
+3. Equation of state — c38fdc4 — ADR-0008
+4. State and initial conditions — 179a778 — ADR-0002, 0008
+5. Linear operators and integrating factor — d96cb38 — ADR-0004, 0005
+6. Incompressible nonlinear term — 923fc45 — ADR-0002, 0003
+7. Time stepping — 16a063f — ADR-0005, 0011, 0023
+8. Diagnostics registry and incompressible diagnostics — 90b6d1b — ADR-0009, 0022
+9. Forcing — 32d0299 — ADR-0007
+10. Compressible right-hand side — 32d0299 — ADR-0002, 0004
+11. Compressible diagnostics — 865c126 — ADR-0009, 0011, 0025
+12. NetCDF I/O and restart — 865c126 — ADR-0009, 0024
+13. Simulation driver — ef3417b — ADR-0009, 0010, 0027
+14. Balanced-density routine — ef3417b — ADR-0013, 0026
+15. Visualisation extensions and acceptance animation — d4fbf9d, user pass 2026-11-25 — ADR-0011, 0012, 0029
+16. Benchmark suite — 6c924a1 — ADR-0010, 0030
+17. Documentation site — 97f8085 — ADR-0012, 0028

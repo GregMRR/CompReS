@@ -2,7 +2,7 @@
 
 Date: 2026-11-19. Status: accepted.
 
-Review round 2 of `docs/ROADMAP.md` (report: `reviews/docs/ROADMAP/r2.md`) found defects that remained after ADR-0014. This ADR records the resulting design changes; the details live in the roadmap work packages.
+Review round 2 of `design/origin/ROADMAP-build.md` (report: `design/reviews/roadmap/r2.md`) found defects that remained after ADR-0014. This ADR records the resulting design changes; the details live in the roadmap work packages.
 
 - **Hermitian `kx = 0` column (ADR-0007).** The real-FFT layout stores `(0, ky)` and `(0, −ky)`. A generator that fills them independently makes spectral diagnostics disagree with the physical field (4.4% injection error in the reviewer's probe). Every generated spectral field passes through `enforce_hermitian!`, and the tests measure injection on the physical grid.
 - **Balanced density (ADR-0013).** The normalising constant goes on `h`, found by a scalar root find; `ρ` is truncated to the disc, so the `∂_tθ(0)` residual falls spectrally with `N` and the round-off test runs at `N = 64`.

@@ -2,7 +2,7 @@
 
 Date: 2026-11-19. Status: accepted.
 
-Review round 3 of `docs/ROADMAP.md` (report: `reviews/docs/ROADMAP/r3.md`) found two acceptance tests that a correct implementation fails, and smaller gaps. Changes:
+Review round 3 of `design/origin/ROADMAP-build.md` (report: `design/reviews/roadmap/r3.md`) found two acceptance tests that a correct implementation fails, and smaller gaps. Changes:
 
 - **Injection rates are computed in `step!` (ADR-0009).** A diagnostic sees `u_{n+1}`, but the injection rate needs `u_n` with `f_n`; sampling after the step biases it by `+Δt/τ_f`. `step!` stores the rates in the workspace.
 - **Balanced-density bound.** The round-off floor of `∂_tθ(0)` grows with `N` (`h(1)` dominates `h`), so the WP-14 bound is `1e-9` at `N = 64`, well above the floor and well below the wrong-procedure value.
