@@ -130,3 +130,4 @@ Format: `N. Title — commit or date — ADRs — plan file (if any)`. Items 0 t
 16. Benchmark suite — 6c924a1 — ADR-0010, 0030
 17. Documentation site — 97f8085 — ADR-0012, 0028
 18. Upscaling restart — 2026-11-25 — ADR-0031 — `design/plans/upscaling.md`
+19. Scaling benchmark and its docs figures — 2026-11-26 — ADR-0032

@@ -88,3 +88,22 @@ julia --project=benchmark benchmark/predict.jl --N=2048 --model=compressible --d
 
 The prediction covers `step!` only; forcing, diagnostics and output add to it.
 `benchmark/cpu_kernel.jl` compares one kernel under the KernelAbstractions `CPU()` backend with a `Threads.@threads` loop.
+
+### Scaling with the resolution
+
+`benchmark/scaling.jl` measures the mean time per step for `N = 128 … 6144`, on the CPU and on the GPU, for both models (ADR-0032).
+A point is the mean of 300 consecutive calls of `step!` (RK4 with the integrating factor, Float64, random velocity, no forcing).
+`benchmark/plot_scaling.jl` draws the result file into the figures below.
+
+```
+COMPRES_MACHINE=DesktopNvidia nice -n 10 julia --project=benchmark -t 32 benchmark/scaling.jl
+julia --project=benchmark benchmark/plot_scaling.jl --machine=DesktopNvidia
+```
+
+The keys of `scaling.jl` are `devices`, `models`, `N`, `steps`, `T`, `machine` and `out`.
+The development machine runs the CPU with 32 of its 40 hardware threads under `nice -n 10`, so the desktop stays usable during the sweep.
+A grid that does not fit the GPU memory has no GPU point: on the RTX 5070 (12 GiB) the compressible model at `N = 6144` does not fit.
+
+![Mean time per step of the incompressible model against the resolution, CPU and GPU](assets/scaling_incompressible.png)
+
+![Mean time per step of the compressible model against the resolution, CPU and GPU](assets/scaling_compressible.png)

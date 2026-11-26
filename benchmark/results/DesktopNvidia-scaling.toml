@@ -1,0 +1,43 @@
+[meta]
+julia = "1.12.4"
+integrating_factor = true
+threads = 32
+cpu = "Intel(R) Xeon(R) w7-3445"
+gpu = "NVIDIA GeForce RTX 5070"
+date = "2026-11-26T14:48:33.470"
+machine = "DesktopNvidia"
+cpu_logical_cores = 40
+scheme = "RK4"
+step_time_unit = "s"
+
+[config.incompressible-cuda-Float64]
+steps = 300
+T = "Float64"
+device = "cuda"
+model = "incompressible"
+N = [128, 256, 512, 1024, 2048, 4096, 6144]
+t_step = [0.00048884928, 0.0006246266533333334, 0.00164347117, 0.00741907014, 0.03177514566333333, 0.13679270193, 0.33256662534]
+
+[config.compressible-cuda-Float64]
+steps = 300
+T = "Float64"
+device = "cuda"
+model = "compressible"
+N = [128, 256, 512, 1024, 2048, 4096]
+t_step = [0.0011424350333333333, 0.0015814633099999998, 0.004331464586666667, 0.019783446103333335, 0.07814075261333334, 0.33320778499]
+
+[config.incompressible-cpu-Float64]
+steps = 300
+T = "Float64"
+device = "cpu"
+model = "incompressible"
+N = [128, 256, 512, 1024, 2048, 4096, 6144]
+t_step = [0.00263206214, 0.00327580249, 0.005032969866666666, 0.03454807942666666, 0.25897704207, 1.2973106757933335, 2.999158900033333]
+
+[config.compressible-cpu-Float64]
+steps = 300
+T = "Float64"
+device = "cpu"
+model = "compressible"
+N = [128, 256, 512, 1024, 2048, 4096, 6144]
+t_step = [0.00632255175, 0.008147589103333333, 0.014263397486666666, 0.10043523143666667, 0.5763995484966667, 2.8353966711433336, 6.550136369226666]

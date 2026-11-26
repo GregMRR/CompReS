@@ -53,6 +53,7 @@ Data flow of a run: `Simulation` (`src/simulation.jl`) builds a `Problem` (grid,
 - AMD tier (needs AMD hardware): `julia --project=test test/amdgpu/runtests.jl`.
 - Docs: `julia --project=docs docs/make.jl`.
 - Benchmarks (full sweep about 4 min): `julia --project=benchmark -t auto benchmark/run.jl [--key=list ...]` writes `benchmark/results/<machine>.toml`; `benchmark/predict.jl --N=... --model=... --device=... --T=... --t_end=... --dt=...` predicts a run (see `docs/src/tests_and_gpu.md`).
+- Scaling figures of the docs (about 1.5 h, mostly CPU): `nice -n 10 julia --project=benchmark -t 32 benchmark/scaling.jl` writes `benchmark/results/<machine>-scaling.toml`; `julia --project=benchmark benchmark/plot_scaling.jl` writes `docs/src/assets/scaling_<model>.png` (ADR-0032).
 - A new file in `src/` needs an `@autodocs` line in one of `docs/src/api/*.md`; otherwise the docs check `checkdocs = :all` fails.
 
 ## Conventions

@@ -1,0 +1,11 @@
+# Scaling benchmark: mean time per step against the grid size, CPU and GPU
+
+Date: 2026-11-26. Status: accepted.
+
+The user asked for one figure per model in the docs: the mean time per step against the resolution, one line for the CPU and one for the GPU, for `N = 128, 256, 512, 1024, 2048, 4096, 6144`. ADR-0030 stays valid for `benchmark/run.jl` and `predict.jl`; this ADR adds a second, separate measurement.
+
+- **Scripts.** `benchmark/scaling.jl` measures and writes `benchmark/results/<machine>-scaling.toml`; `benchmark/plot_scaling.jl` reads that file and writes `docs/src/assets/scaling_<model>.png`. Two scripts keep the plot repeatable without a new measurement. The benchmark environment gets `CairoMakie` for the plot script.
+- **What is timed.** The same `Simulation` as ADR-0030: `NoForcing`, `random_velocity` with `E_kin = 0.5`, RK4 with the integrating factor, `Δt = 1e-4`, `Isothermal(cs = 10)` for the compressible model. A point is the wall time of 300 consecutive calls of `step!` divided by 300, after 5 warm-up calls, with one `KernelAbstractions.synchronize` at the end. This is the mean that the user asked for; `run.jl` keeps the median of ADR-0030 for its fit. An unrecorded point at `N = 64` runs first in each configuration, so kernel compilation and device initialisation do not enter the first recorded point.
+- **Float type.** `Float64` on both devices, as the production runs. On the RTX 5070 of the development machine Float64 runs at about 1/64 of the Float32 rate; `--T=Float32` selects the other type.
+- **Grid sizes.** `6144 = 3 · 2^11` is not a power of 2. ADR-0030 excludes such sizes from its fit; this benchmark has no fit, so it keeps them. A size that does not fit the device memory (an `OutOfGPUMemoryError` or a cuFFT error) is dropped for that configuration.
+- **Machine load.** The user asked for both devices "exploited to the max, without blocking normal PC usage". On the development machine (20 cores, 40 hardware threads) the run uses 32 Julia threads, which also set the FFTW threads, under `nice -n 10`. Eight hardware threads stay free for interactive work, and `nice` gives interactive processes priority. The CPU points therefore are a lower bound of the speed with all 40 threads. The GPU run uses the whole device; the desktop display shares it.
